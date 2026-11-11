@@ -21,11 +21,16 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 .encabezado { background: var(--navy); color: #fff; }
-.encabezado > div, main { max-width: 1240px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+.encabezado > div, main, .nav > div { max-width: 1240px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
 .encabezado > div { padding-top: 20px; padding-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: end; justify-content: space-between; }
 h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
 .encabezado p { margin: 4px 0 0; color: #c9d6ea; max-width: 760px; }
 .etiqueta { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #fff3d6; color: #6b4a00; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+.nav { position: sticky; top: 0; z-index: 20; background: rgba(255, 255, 255, .96); border-bottom: 1px solid var(--border); backdrop-filter: blur(6px); }
+.nav > div { display: flex; flex-wrap: wrap; gap: 2px 4px; padding-top: 6px; padding-bottom: 6px; }
+.nav a { color: var(--ink-2); text-decoration: none; font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 8px; }
+.nav a:hover, .nav a:focus-visible { background: var(--wash); color: var(--navy); outline: none; }
 main { padding-top: 16px; padding-bottom: 40px; }
 h2 { font-size: 15px; font-weight: 650; margin: 0 0 2px; color: var(--navy); }
 .nota { color: var(--ink-2); font-size: 12.5px; margin: 0 0 12px; }
@@ -88,6 +93,8 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
   tbody tr:hover { background: none; }
 }
 @media (max-width: 480px) { .tarjetas { grid-template-columns: minmax(0, 1fr); } .chart { height: 260px; } .chart.alta { height: 340px; } }
+@media (max-width: 600px) { html { scroll-padding-top: 90px; } .nav a { padding: 4px 8px; font-size: 12.5px; } }
+@media print { .nav { display: none !important; } }
 </style>
 </head>
 <body>
@@ -100,9 +107,12 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
     <span class="etiqueta" id="aviso-mock" hidden>Datos de prueba (mock)</span>
   </div>
 </header>
+<nav class="nav" aria-label="Secciones">
+  <div id="nav-enlaces"></div>
+</nav>
 
 <main>
-  <div class="barra">
+  <div class="barra" id="sec-resumen" data-nav="Resumen">
     <label>Vivienda
       <select id="sel-vivienda"></select>
     </label>
@@ -139,7 +149,7 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
   </details>
 
   <div class="grid">
-    <section class="card full">
+    <section class="card full" id="sec-tabla" data-nav="Escenarios">
       <h2>Resumen por escenario</h2>
       <p class="nota" id="nota-tabla"></p>
       <div class="tabla"><table id="tabla"></table></div>
@@ -151,20 +161,20 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
       <div class="chart"><canvas id="c-rango" role="img" aria-label="Temperatura operativa de cada escenario y su rango aceptable"></canvas></div>
     </section>
 
-    <section class="card" id="card-tradeoff">
+    <section class="card" id="card-tradeoff" data-nav="Gráficas">
       <h2>Confort contra energía</h2>
       <p class="nota">Cada punto es un escenario. Abajo a la izquierda es mejor: menos grados fuera del rango y menos energía.</p>
       <div class="chart"><canvas id="c-tradeoff" role="img" aria-label="Grados fuera del rango contra energía de cada escenario"></canvas></div>
     </section>
 
-    <section class="card full">
+    <section class="card full" id="sec-mensual" data-nav="Detalle mensual">
       <h2>Mes a mes: <span id="titulo-mensual"></span></h2>
       <p class="nota" id="cambios-mensual"></p>
       <p class="nota">Línea de color: escenario elegido. Línea gris discontinua: caso base. Franja azul: rango aceptable ASHRAE 55 de cada mes. Líneas punteadas: temperatura exterior máxima y mínima.</p>
       <div class="chart alta"><canvas id="c-mensual" role="img" aria-label="Temperatura operativa mensual del escenario elegido y del caso base"></canvas></div>
     </section>
   </div>
-  <section class="datos" aria-label="Datos">
+  <section class="datos" aria-label="Datos" id="sec-datos" data-nav="Datos">
     <h2>Datos</h2>
     <div class="fuente" id="fuente">Cargando datos…</div>
     <button id="recargar" type="button">Recargar datos</button>
@@ -191,6 +201,8 @@ const PARAMS = { U_muro_ext: ["U muro", "W/m²K"], U_techo: ["U techo", "W/m²K"
   ventilacion_ach: ["ventilación", "ren/h"], vel_aire_m_s: ["velocidad del aire", "m/s"] };
 let todas = [], filas = [], escenarios = [], colores = {}, charts = {};
 const REQUERIDAS = ["vivienda_id", "escenario_id", "escenario_nombre", "es_base", "periodo", "T_operativa_C"];
+// barra de navegación: un enlace por cada sección que declara data-nav (en el orden de la página)
+document.getElementById("nav-enlaces").innerHTML = [...document.querySelectorAll("[data-nav]")].map(x => `<a href="#${x.id}">${esc(x.dataset.nav)}</a>`).join("");
 
 // Une todos los CSV (cada archivo = salida de backend/generar_csv_confort.py).
 // Una fila se identifica por vivienda × escenario × periodo; si se repite, gana el último archivo (orden alfabético).
