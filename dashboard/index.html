@@ -17,15 +17,22 @@
   /* series: paleta categórica validada (escenarios, en el orden de los datos) */
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
   --good: #006300; --bad: #c62f2f;
+  /* divergente del mapa de calor: frío (déficit) ← gris → calor (exceso) */
+  --frio: #1c5cab; --neutro: #f0efec; --calor: #c62f2f;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 .encabezado { background: var(--navy); color: #fff; }
-.encabezado > div, main { max-width: 1240px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+.encabezado > div, main, .nav > div { max-width: 1240px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
 .encabezado > div { padding-top: 20px; padding-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: end; justify-content: space-between; }
 h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
 .encabezado p { margin: 4px 0 0; color: #c9d6ea; max-width: 760px; }
 .etiqueta { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #fff3d6; color: #6b4a00; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+.nav { position: sticky; top: 0; z-index: 20; background: rgba(255, 255, 255, .96); border-bottom: 1px solid var(--border); backdrop-filter: blur(6px); }
+.nav > div { display: flex; flex-wrap: wrap; gap: 2px 4px; padding-top: 6px; padding-bottom: 6px; }
+.nav a { color: var(--ink-2); text-decoration: none; font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 8px; }
+.nav a:hover, .nav a:focus-visible { background: var(--wash); color: var(--navy); outline: none; }
 main { padding-top: 16px; padding-bottom: 40px; }
 h2 { font-size: 15px; font-weight: 650; margin: 0 0 2px; color: var(--navy); }
 .nota { color: var(--ink-2); font-size: 12.5px; margin: 0 0 12px; }
@@ -39,7 +46,9 @@ button:hover { background: var(--accent); }
 .fuente { color: var(--muted); font-size: 12px; margin: 8px 2px 0; }
 .fuente div + div { color: var(--bad); }
 .tarjetas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
-.tarjeta { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--navy-2); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.tarjeta { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--navy-2); border-radius: 12px; padding: 12px 14px; min-width: 0;
+  display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 0 10px; }
+.tarjeta .icono { grid-row: 1 / 4; width: 36px; height: 36px; border-radius: 10px; background: var(--wash); display: grid; place-items: center; color: var(--accent); }
 .tarjeta .titulo { font-size: 12px; font-weight: 600; color: var(--ink-2); }
 .tarjeta .valor { font-size: 24px; font-weight: 650; color: var(--navy); line-height: 1.25; margin: 2px 0; overflow-wrap: anywhere; }
 .tarjeta .detalle { font-size: 12px; color: var(--muted); }
@@ -66,6 +75,28 @@ tbody tr:hover { background: var(--wash); }
 .base { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--wash); border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
 .mejor { color: var(--good); font-weight: 600; } .peor { color: var(--bad); font-weight: 600; }
 .cambios { display: block; font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+/* mapa de calor mes a mes */
+.mapa { width: 100%; table-layout: fixed; font-size: 12px; }
+.mapa th, .mapa td { padding: 0; border: 2px solid var(--surface); text-align: center; height: 34px; }
+.mapa th { background: none; font-size: 11px; vertical-align: middle; }
+.mapa th.esc { text-align: left; width: 76px; padding-left: 4px; }
+.mapa .corto { display: none; }
+.mapa th.marca { color: var(--navy); }
+.mapa th.marca small { display: block; font-size: 9.5px; font-weight: 600; color: var(--accent); }
+.mapa td { border-radius: 6px; cursor: pointer; font-weight: 600; }
+.mapa tbody tr { cursor: pointer; }
+.mapa tr.sel th.esc { color: var(--accent); }
+.mapa tr.sel td { box-shadow: inset 0 0 0 2px var(--accent); }
+.mapa tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 12px; color: var(--ink-2); margin-top: 10px; }
+.leyenda .rampa { width: 160px; max-width: 40vw; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--frio), var(--neutro), var(--calor)); }
+#tip { position: fixed; z-index: 50; max-width: 280px; background: var(--navy); color: #fff; font-size: 12px; line-height: 1.4; padding: 8px 10px; border-radius: 8px; box-shadow: 0 4px 14px rgba(11, 37, 69, .25); pointer-events: none; }
+@media (max-width: 480px) {
+  /* celular: en el mapa solo color y flecha; el número está en la ayuda de cada celda y en la tabla */
+  .mapa { font-size: 10px; } .mapa th { font-size: 9.5px; } .mapa th.esc { width: 46px; white-space: nowrap; padding-left: 2px; } .mapa th.esc .dot { display: none; }
+  .mapa th, .mapa td { height: 28px; border-width: 1px; } .mapa .num, .mapa .largo { display: none; } .mapa .corto { display: inline; }
+  .mapa th.marca small { font-size: 8px; }
+}
 .datos { margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; }
 .datos h2 { font-size: 13px; margin: 0; }
 .datos .fuente { flex: 1 1 260px; margin: 0; }
@@ -86,6 +117,8 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
   tbody tr:hover { background: none; }
 }
 @media (max-width: 480px) { .tarjetas { grid-template-columns: minmax(0, 1fr); } .chart { height: 260px; } .chart.alta { height: 340px; } }
+@media (max-width: 600px) { html { scroll-padding-top: 90px; } .nav a { padding: 4px 8px; font-size: 12.5px; } }
+@media print { .nav { display: none !important; } }
 </style>
 </head>
 <body>
@@ -98,9 +131,12 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
     <span class="etiqueta" id="aviso-mock" hidden>Datos de prueba (mock)</span>
   </div>
 </header>
+<nav class="nav" aria-label="Secciones">
+  <div id="nav-enlaces"></div>
+</nav>
 
 <main>
-  <div class="barra">
+  <div class="barra" id="sec-resumen" data-nav="Resumen">
     <label>Vivienda
       <select id="sel-vivienda"></select>
     </label>
@@ -117,10 +153,10 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
   </div>
 
   <section class="tarjetas" aria-label="Lectura rápida">
-    <div class="tarjeta"><div class="titulo">Escenarios dentro del rango ASHRAE 55</div><div class="valor" id="k-dentro">—</div><div class="detalle" id="k-dentro-d"></div></div>
-    <div class="tarjeta"><div class="titulo">Más fuera del rango</div><div class="valor" id="k-fuera">—</div><div class="detalle" id="k-fuera-d"></div></div>
-    <div class="tarjeta"><div class="titulo">Mayor ahorro de energía</div><div class="valor" id="k-ahorro">—</div><div class="detalle" id="k-ahorro-d"></div></div>
-    <div class="tarjeta"><div class="titulo">Clima exterior del periodo</div><div class="valor" id="k-clima">—</div><div class="detalle" id="k-clima-d"></div></div>
+    <div class="tarjeta"><div class="icono" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></div><div class="titulo">Escenarios dentro del rango ASHRAE 55</div><div class="valor" id="k-dentro">—</div><div class="detalle" id="k-dentro-d"></div></div>
+    <div class="tarjeta"><div class="icono" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0Z"/></svg></div><div class="titulo">Más fuera del rango</div><div class="valor" id="k-fuera">—</div><div class="detalle" id="k-fuera-d"></div></div>
+    <div class="tarjeta"><div class="icono" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></div><div class="titulo">Mayor ahorro de energía</div><div class="valor" id="k-ahorro">—</div><div class="detalle" id="k-ahorro-d"></div></div>
+    <div class="tarjeta"><div class="icono" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></div><div class="titulo">Clima exterior del periodo</div><div class="valor" id="k-clima">—</div><div class="detalle" id="k-clima-d"></div></div>
   </section>
 
   <details class="guia">
@@ -137,7 +173,7 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
   </details>
 
   <div class="grid">
-    <section class="card full">
+    <section class="card full" id="sec-tabla" data-nav="Escenarios">
       <h2>Resumen por escenario</h2>
       <p class="nota" id="nota-tabla"></p>
       <div class="tabla"><table id="tabla"></table></div>
@@ -149,20 +185,27 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
       <div class="chart"><canvas id="c-rango" role="img" aria-label="Temperatura operativa de cada escenario y su rango aceptable"></canvas></div>
     </section>
 
-    <section class="card" id="card-tradeoff">
+    <section class="card" id="card-tradeoff" data-nav="Gráficas">
       <h2>Confort contra energía</h2>
       <p class="nota">Cada punto es un escenario. Abajo a la izquierda es mejor: menos grados fuera del rango y menos energía.</p>
       <div class="chart"><canvas id="c-tradeoff" role="img" aria-label="Grados fuera del rango contra energía de cada escenario"></canvas></div>
     </section>
 
-    <section class="card full">
+    <section class="card full" id="sec-mapa" data-nav="Mapa mes a mes">
+      <h2>Mapa mes a mes: ¿cuándo se sale del rango cada escenario?</h2>
+      <p class="nota">Cada celda es un mes. Rojo: calor (grados por encima del rango); azul: frío (grados por debajo); gris: dentro del rango. Más intenso = más lejos del rango. Pasa el puntero (o toca) una celda para ver el detalle; clic en una fila para ver ese escenario en el detalle mensual.</p>
+      <div class="tabla"><table class="mapa" id="mapa"></table></div>
+      <div class="leyenda" aria-hidden="true"><span>▼ frío</span><span class="rampa"></span><span>▲ calor</span><span id="leyenda-max"></span></div>
+    </section>
+
+    <section class="card full" id="sec-mensual" data-nav="Detalle mensual">
       <h2>Mes a mes: <span id="titulo-mensual"></span></h2>
       <p class="nota" id="cambios-mensual"></p>
       <p class="nota">Línea de color: escenario elegido. Línea gris discontinua: caso base. Franja azul: rango aceptable ASHRAE 55 de cada mes. Líneas punteadas: temperatura exterior máxima y mínima.</p>
       <div class="chart alta"><canvas id="c-mensual" role="img" aria-label="Temperatura operativa mensual del escenario elegido y del caso base"></canvas></div>
     </section>
   </div>
-  <section class="datos" aria-label="Datos">
+  <section class="datos" aria-label="Datos" id="sec-datos" data-nav="Datos">
     <h2>Datos</h2>
     <div class="fuente" id="fuente">Cargando datos…</div>
     <button id="recargar" type="button">Recargar datos</button>
@@ -170,6 +213,7 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: cen
   </section>
   <footer>Confort medido siempre con ASHRAE 55, método adaptativo · La tabla contiene todos los valores de las gráficas</footer>
 </main>
+<div id="tip" role="tooltip" hidden></div>
 
 <script>
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -189,6 +233,8 @@ const PARAMS = { U_muro_ext: ["U muro", "W/m²K"], U_techo: ["U techo", "W/m²K"
   ventilacion_ach: ["ventilación", "ren/h"], vel_aire_m_s: ["velocidad del aire", "m/s"] };
 let todas = [], filas = [], escenarios = [], colores = {}, charts = {};
 const REQUERIDAS = ["vivienda_id", "escenario_id", "escenario_nombre", "es_base", "periodo", "T_operativa_C"];
+// barra de navegación: un enlace por cada sección que declara data-nav (en el orden de la página)
+document.getElementById("nav-enlaces").innerHTML = [...document.querySelectorAll("[data-nav]")].map(x => `<a href="#${x.id}">${esc(x.dataset.nav)}</a>`).join("");
 
 // Une todos los CSV (cada archivo = salida de backend/generar_csv_confort.py).
 // Una fila se identifica por vivienda × escenario × periodo; si se repite, gana el último archivo (orden alfabético).
@@ -257,7 +303,7 @@ function queCambia(e) {
 
 function pintar() {
   const per = document.getElementById("periodo").value;
-  resumen(per); tabla(per); rango(per); tradeoff(per); mensual(document.getElementById("escenario").value);
+  resumen(per); tabla(per); rango(per); tradeoff(per); mapaCalor(); mensual(document.getElementById("escenario").value);
 }
 
 // Lectura rápida: solo cuenta y ordena lo que ya está en los datos
@@ -402,6 +448,46 @@ function tradeoff(per) {
     radius: 7, hoverRadius: 9, hitRadius: 14 })) }, options: o });
 }
 
+// Mapa de calor: escenarios × meses; exceso (calor) en rojo, déficit (frío) en azul, gris = dentro del rango
+const evaluadoMes = r => r && r.exceso_sobre_limite_C != null && r.deficit_bajo_limite_C != null;
+// con menos de 0.1 °C se muestran centésimas, para no ver "0.0" en algo que sí se sale
+const fmtF = v => v != null && v > 0 && v < 0.1 ? fmt(v, 2) : fmt(v);
+function mezcla(c1, c2, t) {
+  const a = [1, 3, 5].map(i => parseInt(c1.slice(i, i + 2), 16)), b = [1, 3, 5].map(i => parseInt(c2.slice(i, i + 2), 16));
+  return "#" + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, "0")).join("");
+}
+function mapaCalor() {
+  const valores = escenarios.flatMap(e => MESES.map(m => fila(e, m)).filter(evaluadoMes).map(fuera));
+  const max = Math.max(0.1, ...valores);
+  const mc = fila(escenarios[0], "mes_caliente")?.mes, mf = fila(escenarios[0], "mes_frio")?.mes;
+  const neutro = css("--neutro"), calor = css("--calor"), frio = css("--frio");
+  document.getElementById("leyenda-max").textContent = valores.length ? `más intenso = ${fmt(max)} °C fuera del rango` : "";
+  document.getElementById("mapa").innerHTML = "<thead><tr><th class='esc' scope='col'><span class='largo'>Escenario</span><span class='corto'>Esc.</span></th>" + MESES.map((m, i) =>
+    `<th scope="col" class="${i + 1 === mc || i + 1 === mf ? "marca" : ""}">${m}${i + 1 === mc ? "<small>caliente</small>" : i + 1 === mf ? "<small>frío</small>" : ""}</th>`).join("") +
+    "</tr></thead><tbody>" + escenarios.map(e => `<tr data-esc="${esc(e)}" tabindex="0"><th scope="row" class="esc"><span class="dot" style="background:${colores[e]}"></span>${esc(e)}</th>` +
+    MESES.map((m, i) => {
+      const r = fila(e, m);
+      if (!evaluadoMes(r)) return `<td data-tip="${esc(e)}, ${MES_NOMBRE[i + 1]}: sin rango ASHRAE 55 o sin resultado." style="background:var(--surface);color:var(--muted)">·</td>`;
+      const exc = r.exceso_sobre_limite_C || 0, def = r.deficit_bajo_limite_C || 0, v = exc || def;
+      const t = Math.min(1, v / max), fondo = v ? mezcla(neutro, exc ? calor : frio, 0.25 + 0.75 * t) : neutro;
+      const texto = v ? `${exc ? "▲" : "▼"}<span class="num">${fmtF(v)}</span>` : "";
+      const tip = `${e}, ${MES_NOMBRE[i + 1]}: T operativa ${fmt(r.T_operativa_C)} °C; rango ${fmt(r.limite_inf_C)} – ${fmt(r.limite_sup_C)} °C. ` +
+        (v ? `${fmtF(v)} °C ${exc ? "por encima (calor)" : "por debajo (frío)"}.` : "Dentro del rango.");
+      return `<td data-tip="${esc(tip)}" style="background:${fondo};color:${v && t > 0.45 ? "#fff" : css("--ink")}" aria-label="${esc(tip)}">${texto}</td>`;
+    }).join("") + "</tr>").join("") + "</tbody>";
+  marcarMapa();
+}
+// resalta en el mapa el escenario elegido para el detalle mensual
+function marcarMapa() {
+  const e = document.getElementById("escenario").value;
+  document.querySelectorAll("#mapa tbody tr").forEach(tr => tr.classList.toggle("sel", tr.dataset.esc === e));
+}
+function elegirDesdeMapa(tr) {
+  document.getElementById("escenario").value = tr.dataset.esc;
+  mensual(tr.dataset.esc); marcarMapa();
+  document.getElementById("titulo-mensual").closest("section").scrollIntoView({ block: "start" });
+}
+
 function mensual(e) {
   document.getElementById("titulo-mensual").textContent = `${e} — ${nombre(e)}`;
   document.getElementById("cambios-mensual").textContent = `Qué cambia contra el base: ${queCambia(e)}.`;
@@ -431,7 +517,7 @@ function mensual(e) {
 }
 
 document.getElementById("periodo").onchange = pintar;
-document.getElementById("escenario").onchange = e => mensual(e.target.value);
+document.getElementById("escenario").onchange = e => { mensual(e.target.value); marcarMapa(); };
 document.getElementById("sel-vivienda").onchange = e => seleccionar(e.target.value);
 document.getElementById("recargar").onclick = desdeServidor;
 document.getElementById("archivo").onchange = async ev => {
@@ -439,6 +525,23 @@ document.getElementById("archivo").onchange = async ev => {
   const archivos = await Promise.all(fs.map(async f => ({ nombre: f.name, texto: await f.text() })));
   cargar(archivos.sort((a, b) => a.nombre.localeCompare(b.nombre)), `Archivo(s) abiertos: ${fs.map(f => f.name).join(", ")}`);
 };
+// Ayuda flotante de las celdas del mapa: siempre dentro de la pantalla
+const tip = document.getElementById("tip");
+function mostrarTip(el) {
+  const t = el.closest("[data-tip]"); if (!t) return;
+  tip.textContent = t.dataset.tip; tip.hidden = false;
+  const r = t.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
+  tip.style.top = (r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8) + "px";
+}
+const ocultarTip = () => { tip.hidden = true; };
+["mouseover", "focusin"].forEach(ev => document.addEventListener(ev, e => e.target.closest?.("[data-tip]") ? mostrarTip(e.target) : null));
+["mouseout", "focusout"].forEach(ev => document.addEventListener(ev, e => e.target.closest?.("[data-tip]") && ocultarTip()));
+addEventListener("scroll", ocultarTip, { passive: true });
+document.getElementById("mapa").addEventListener("click", ev => { const tr = ev.target.closest("tbody tr"); if (tr) elegirDesdeMapa(tr); });
+document.getElementById("mapa").addEventListener("keydown", ev => {
+  const tr = ev.target.closest("tbody tr"); if (tr && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); elegirDesdeMapa(tr); }
+});
 desdeServidor();
 </script>
 </body>
