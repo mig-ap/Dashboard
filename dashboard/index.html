@@ -288,20 +288,27 @@ function resumen(per) {
 function tabla(per) {
   const rs = escenarios.map(e => fila(e, per)).filter(Boolean);
   const r0 = rs[0];
-  document.getElementById("nota-tabla").textContent = per === "anual"
-    ? "Año completo. El año no tiene un rango propio: exceso y déficit son los del peor mes."
-    : `${per === "mes_caliente" ? "Mes más caliente" : "Mes más frío"} según el clima: ${MES_NOMBRE[r0?.mes] ?? "?"}.`;
+  // el rango ASHRAE depende solo del clima del mes: es el mismo para todos los escenarios,
+  // salvo que un ventilador suba el límite superior. Se muestra una vez, sin ese ajuste.
+  const sup = rs.map(r => r.limite_sup_C).filter(v => v != null);
+  const supSinAire = sup.length ? Math.min(...sup) : null;
+  document.getElementById("nota-tabla").innerHTML = per === "anual"
+    ? "Año completo. El rango ASHRAE 55 cambia cada mes con el clima (ver «Mes a mes»); exceso y déficit son los del peor mes."
+    : `${per === "mes_caliente" ? "Mes más caliente" : "Mes más frío"} según el clima: ${MES_NOMBRE[r0?.mes] ?? "?"}. ` +
+      (r0?.limite_inf_C == null ? "Sin rango ASHRAE 55 para este mes." :
+        `Rango aceptable ASHRAE 55${aceptabilidad(rs)}, igual para todos los escenarios: <strong>${fmt(r0.limite_inf_C)} – ${fmt(supSinAire)} °C</strong>.`);
+  const ventilador = r => r.limite_sup_C != null && supSinAire != null && r.limite_sup_C > supSinAire
+    ? ` · el ventilador sube el límite superior a ${fmt(r.limite_sup_C)} °C` : "";
   // verde = mejora contra el base, rojo = empeora; siempre con signo, nunca solo color
   const cls = v => v == null || isNaN(v) || v === 0 ? "" : (v < 0 ? "mejor" : "peor");
-  const lim = r => r.limite_inf_C == null ? "—" : `${fmt(r.limite_inf_C)} – ${fmt(r.limite_sup_C)}`;
   const marca = (v, simbolo) => v > 0 ? `<span class="peor">${simbolo} ${fmt(v)}</span>` : fmt(v);
   document.getElementById("tabla").innerHTML = `<thead>
-    <tr><th>Escenario y qué cambia</th><th>T operativa<small>°C</small></th><th>Rango ASHRAE<small>°C</small></th>
+    <tr><th>Escenario y qué cambia</th><th>T operativa<small>°C</small></th>
     <th>Exceso<small>°C, calor</small></th><th>Déficit<small>°C, frío</small></th><th>Δ fuera del rango<small>°C vs base</small></th>
     <th>Energía<small>kWh</small></th><th>Δ energía<small>vs base</small></th><th>Carbono<small>kgCO₂e</small></th></tr></thead><tbody>` +
     rs.map(r => `<tr>
-      <td><span class="dot" style="background:${colores[r.escenario_id]}"></span><strong>${esc(r.escenario_id)}</strong> — ${esc(r.escenario_nombre)}${esBase(r.escenario_id) ? '<span class="base">base</span>' : ""}<span class="cambios">${esc(queCambia(r.escenario_id))}</span></td>
-      <td>${fmt(r.T_operativa_C)}</td><td>${lim(r)}</td>
+      <td><span class="dot" style="background:${colores[r.escenario_id]}"></span><strong>${esc(r.escenario_id)}</strong> — ${esc(r.escenario_nombre)}${esBase(r.escenario_id) ? '<span class="base">base</span>' : ""}<span class="cambios">${esc(queCambia(r.escenario_id) + ventilador(r))}</span></td>
+      <td>${fmt(r.T_operativa_C)}</td>
       <td>${marca(r.exceso_sobre_limite_C, "▲")}</td><td>${marca(r.deficit_bajo_limite_C, "▼")}</td>
       <td class="${cls(r.delta_fuera_rango_C)}">${signo(r.delta_fuera_rango_C)}</td>
       <td>${fmt(r.energia_total_kWh, 0)}</td><td class="${cls(r.delta_energia_pct)}">${signo(r.delta_energia_pct, 0)} %</td>

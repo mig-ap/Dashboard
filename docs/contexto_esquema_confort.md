@@ -146,7 +146,7 @@ Script            → límites adaptativos del mes → exceso/déficit = T_op �
 - **Cuartos de nuevo (si hiciera falta):** el modelo de v6 con `espacio_id` y fila TOTAL queda en el historial; reintroducirlo implicaría volver a agregar `espacios.csv` y la ponderación por área.
 - **Vistas actuales del dashboard** (filtros: vivienda, periodo `clave` y escenario de la gráfica mensual):
   1. Lectura rápida: escenarios dentro del rango, el más fuera del rango, mayor ahorro de energía y clima del periodo.
-  2. Tabla de escenarios con todos los valores y qué medidas cambian contra el base (en pantallas angostas, una ficha por escenario).
+  2. Tabla de escenarios con todos los valores y qué medidas cambian contra el base (en pantallas angostas, una ficha por escenario). El rango ASHRAE 55 se muestra una sola vez por periodo, porque depende solo del clima del mes; en un escenario solo se indica si su ventilador sube el límite superior.
   3. T_op de cada escenario frente a la franja ASHRAE 55 del mes (se oculta en «Año», que no tiene franja propia).
   4. Tradeoff: grados fuera del rango contra energía, con el nombre de cada escenario junto a su punto.
   5. Mes a mes: T_op del escenario y del base contra la franja, con T exterior máx/mín de referencia.
