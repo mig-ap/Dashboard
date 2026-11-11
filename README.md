@@ -73,7 +73,7 @@ herramientas/              utilidades (empaquetar la skill)
 Necesitas **Python 3.10 o superior** y un navegador. El dashboard carga sus librerías de gráficas desde internet, así que necesitas conexión.
 
 ### 1. Ver el dashboard (no requiere instalar nada)
-
+Pegar en la terminal del sistema (PowerShell para Windows, bash para linux)
 ```bash
 git clone https://github.com/SanMoF/Dashboard
 cd Dahsboard_Thermal_Comfort
