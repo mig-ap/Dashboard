@@ -4,6 +4,23 @@ Herramienta para comparar **cambios a una vivienda** (aislamiento, vidrios, acab
 
 Proyecto de becario dentro del proyecto SECIHTI de descarbonización de vivienda en Puebla. Los datos incluidos (`PUE-01`, `PUE-02`) son **de prueba (mock)** y no representan casas reales.
 
+## Instalar (no hace falta saber programar)
+
+Funciona en **Windows, macOS y Linux**.
+
+1. **Instala Python 3.10 o más reciente** desde [python.org/downloads](https://www.python.org/downloads/) (botón amarillo). En Windows, marca la casilla **«Add python.exe to PATH»** en la primera pantalla del instalador.
+2. **Descarga el proyecto:** en [la página del proyecto](https://github.com/SanMoF/Dashboard), botón verde **Code → Download ZIP**. Descomprímelo, por ejemplo en Documentos.
+3. **Abre una terminal en la carpeta del proyecto:**
+   - **Windows:** en el Explorador, escribe `cmd` en la barra de dirección y pulsa Enter.
+   - **Mac:** abre Terminal, escribe `cd `, arrastra la carpeta y pulsa Enter.
+   - **Linux:** clic derecho → «Abrir en una terminal».
+4. **Ejecuta el instalador:** `py instalar.py` (Windows) o `python3 instalar.py` (Mac y Linux). Tarda unos minutos y termina con «Listo».
+5. **Abre el dashboard** con doble clic en **«Abrir dashboard»**, el archivo que el instalador creó en la carpeta.
+
+El instalador no toca nada fuera de la carpeta del proyecto: deja las librerías en `.venv`, comprueba que el cálculo y el dashboard funcionen, y si algo falla te dice qué pasó y qué hacer. El detalle queda en `instalacion.log`. Puedes repetirlo cuantas veces quieras. Para desinstalar, borra la carpeta.
+
+**Con ayuda de Claude:** instala la skill `instalar-proyecto` (archivo `dist/instalar-proyecto.skill`, que se genera con `python herramientas/empaquetar_skill.py`) en Claude Cowork o claude.ai y pide «instala el dashboard de confort en mi computadora». Te guiará paso a paso, incluida la instalación de Python.
+
 ## Qué hace
 
 1. **Backend (`backend/`)**: toma los resultados del simulador de cada escenario (un valor por mes) y genera **un CSV por vivienda** con los indicadores de confort.

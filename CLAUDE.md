@@ -14,7 +14,9 @@ Layout:
 - `dashboard/index.html` — static page (Chart.js + PapaParse from cdnjs). `dashboard/servidor.py` (stdlib only) serves it plus `/api/csv` (list of CSVs in `datos/`) and `/datos/<file>.csv`. Without the server the page only works via its multi-file picker.
 - `docs/metodologia_calculo.md` — every formula (ASHRAE 55 adaptive), step by step, mapped to script functions, with assumptions/limitations. Update it whenever a calculation changes.
 - `docs/contexto_esquema_confort.md` — decision history (v1–v10), column list, calculation logic, open questions. Read before changing the schema.
-- `.claude/skills/esquema-confort-termico/` — project-local skill. Its `scripts/` and context copy are synced from `backend/` and `docs/` by `python herramientas/empaquetar_skill.py`, which also builds `dist/esquema-confort-termico.skill` (gitignored). Run it after editing either source.
+- `instalar.py` — one-shot installer for non-programmers (any OS, Python 3.10+, syntax kept compatible with older Pythons so they get a readable message): creates `.venv`, installs `backend/requirements.txt`, runs a real check (mock → CSV, dashboard server + `/api/csv`), writes a double-click launcher (`Abrir dashboard.bat` / `.command` / `abrir_dashboard.sh`, gitignored) and `instalacion.log`. Idempotent. Every failure explains what happened and what to do in plain Spanish.
+- `.claude/skills/instalar-proyecto/` — skill that guides someone who has never programmed through installing Python, downloading the project and running `instalar.py` (copy synced into its `scripts/`).
+- `.claude/skills/esquema-confort-termico/` — project-local skill. Its `scripts/` and context copy are synced from `backend/` and `docs/` by `python herramientas/empaquetar_skill.py`, which also builds `dist/<skill>.skill` for both skills (gitignored). Run it after editing either source.
 
 ## Commands
 

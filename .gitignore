@@ -17,3 +17,9 @@ dist/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Creados por instalar.py en cada computadora
+instalacion.log
+Abrir dashboard.bat
+Abrir dashboard.command
+abrir_dashboard.sh
