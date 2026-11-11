@@ -75,7 +75,7 @@ Necesitas **Python 3.10 o superior** y un navegador. El dashboard carga sus libr
 ### 1. Ver el dashboard (no requiere instalar nada)
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/SanMoF/Dashboard
 cd Dahsboard_Thermal_Comfort
 python dashboard/servidor.py
 ```
