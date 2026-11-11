@@ -3,9 +3,9 @@
 Este documento guarda todo el contexto del **esquema de datos del dashboard de confort térmico**: qué se busca, cómo se llegó al diseño actual, la lógica de cálculo y lo que falta decidir. Sirve para retomar el trabajo sin perder decisiones y para seguir mejorando el esquema pensando en el dashboard final.
 
 - **Proyecto:** dashboard propio de confort térmico (proyecto de becario), dentro del proyecto SECIHTI de descarbonización de vivienda en Puebla.
-- **Vivienda de trabajo:** PUE-01 (modelo mock). Es una sola vivienda con superficie fija; lo que cambia entre corridas son las medidas.
+- **Viviendas:** PUE-01 es la vivienda de trabajo; PUE-01 y PUE-02 tienen hoy solo datos mock. Cada vivienda tiene superficie fija y se analiza por separado; lo que cambia entre escenarios son las medidas. El esquema admite cualquier número de viviendas (`vivienda_id`).
 - **Pregunta que responde el dashboard:** ¿qué cambios a la vivienda mejoran más el confort térmico, y cuánto cuestan en energía y carbono? Lo que más interesa son los casos límite (mes caliente y mes frío).
-- **Estándar fijo:** el confort siempre se mide con **ASHRAE 55** (método adaptativo). No es configurable: `metodo_confort` es una constante en el script.
+- **Estándar fijo:** el confort siempre se mide con **ASHRAE 55** (método adaptativo). No es configurable: el script no tiene ninguna opción para cambiar de método.
 - **Usuario final:** una persona de arquitectura que usa el CSV/dashboard para comparar los tradeoffs que producen los cambios a la vivienda en el confort. Por eso el esquema debe poder leerse sin conocimientos de simulación: pocas columnas con nombres claros, un escenario = un conjunto de medidas arquitectónicas, y la comparación contra el base ya calculada (`delta_*`).
 - **Objetivo de la simulación:** obtener la temperatura (y humedad) operativa del inmueble, medida en **un punto central de la vivienda** para idealizar la temperatura y reducir la varianza cerca de las paredes. Desde v9 la temperatura operativa la entrega **un simulador preciso** alimentado con los parámetros de cada escenario, como **un valor por mes** (y uno anual) en `resultados_<escenario>.csv`; el script no la calcula ni la reduce a máximos/mínimos.
 - **Modelo (desde v7):** la vivienda se trata como **una sola zona, sin habitaciones**. Las condiciones de todos los cuartos se generalizan en un solo valor por periodo; no hay datos ni filas por cuarto.
@@ -18,7 +18,7 @@ Todos estaban en el zip "Re: Hola":
 
 | Archivo | Qué aporta | Uso en el esquema |
 |---|---|---|
-| `PUE-01_Diana.ifc` | Modelo 3D exportado de Revit | Espacios, áreas, envolvente, vanos (procesado con `procesar_ifc.py`) |
+| `PUE-01_Diana.ifc` | Modelo 3D exportado de Revit (IFC4) | Geometría para el simulador (áreas, volúmenes, vanos). Sus propiedades térmicas son **por defecto de Revit** (no usar); ver pendiente 8 |
 | `Indice_viviendas_Puebla_SECIHTI.xlsx` | Índice de 8 viviendas + hojas IFC_* + WWR | `IFC_espacios`: área total de la vivienda (suma de espacios acondicionados) |
 | `aguilarcoleote…ProyectoCasaNaranja-1.xml` | gbXML de Revit | Geometría y volúmenes; datos térmicos **por defecto de Revit** (no usar) |
 | `gbXML_PUE-01_analisis.xlsx` | Análisis del gbXML contra la realidad | Volumen 421.6 m³; checklist de exportación; valores reales estimados (rangos) |
@@ -108,18 +108,18 @@ Script            → límites adaptativos del mes → exceso/déficit = T_op �
 
 **Zona única:** la T_op y la HR son las del punto central que entrega el simulador. La energía es la de toda la vivienda. Si el simulador entrega varios cuartos, el usuario (o un paso previo fuera del script) los reduce a un solo valor antes de usar el script; el script no promedia cuartos.
 
-**Energía:** cargas para mantener la casa dentro de los límites ASHRAE (cargas ideales). Si el simulador da carga térmica, solo se convierte a eléctrica con un COP o eficiencia dados.
+**Energía:** cargas para mantener la casa dentro de los límites ASHRAE (cargas ideales). Si el simulador da carga térmica, solo se convierte a eléctrica con un COP o eficiencia dados. La T_op y la energía salen de **dos corridas distintas** del mismo modelo: la T_op de una corrida sin climatización (libre evolución), que es la que evalúa el método adaptativo, y la energía de una corrida con cargas ideales (ver `metodologia_calculo.md`, supuesto 2).
 
 **Carbono:** solo de operación (energía × factor de emisión dado). Su delta contra el base es igual al de energía, por eso solo existe `delta_energia_pct`.
 
 ## 6. Decisiones confirmadas por el usuario
 
-- Una sola vivienda (PUE-01), superficie constante, varios cambios.
-- Los datos deben poder sacarse de Revit y de otras herramientas.
+- Una vivienda de trabajo (PUE-01), superficie constante, varios cambios. El esquema admite más viviendas (`vivienda_id`).
+- Los datos deben poder sacarse de Revit y de otras herramientas. Del modelo de Revit solo sirve, por ahora, la geometría (pendiente 8).
 - Enfoque en confort según ASHRAE 55, sin propiedades de materiales por capa.
 - Indicadores clave: T_op, energía y carbono para mes caliente, mes frío y año, junto con el confort.
 - Un solo CSV que pasa directo al dashboard.
-- Sin fechas diarias: los máximos y mínimos cubren los casos límite.
+- Sin filas diarias ni horarias: el año, el mes caliente, el mes frío y cada mes cubren los casos que interesan.
 - No importan las horas (de confort, ocupadas, etc.); hay que reducir variables (v8).
 - La T operativa sale de un simulador preciso con los datos del Excel de escenarios, un valor por periodo; no se reporta como máximo y mínimo. Solo la T exterior lleva máximo y mínimo. La HR se trata igual que la T_op (v9).
 - Se aceptaron los valores por defecto: energía = cargas ideales hasta los límites ASHRAE; carbono solo de operación; la vivienda se evalúa como una sola zona (v7), por lo que ya no se decide qué cuartos evaluar.
@@ -133,26 +133,30 @@ Script            → límites adaptativos del mes → exceso/déficit = T_op �
 5. **Factor de emisión y COP:** que el usuario dé el factor oficial vigente de la red eléctrica y, si aplica, el COP/eficiencia de los equipos.
 6. **Ocupación:** desde v8 no se usa. Si más adelante se quiere ignorar horas sin gente, tendría que resolverlo el simulador al entregar la T_op del periodo.
 7. **Cómo se generaliza la zona única:** definir cómo obtiene el simulador el valor de la vivienda (un solo nodo térmico, o promedio ponderado por área hecho antes del script).
+8. **Modelo de Revit (`PUE-01_Diana.ifc`, revisado en noviembre de 2026):** los valores térmicos que trae son por defecto de Revit y no pueden usarse como parámetros de escenario: U de ventanas 3.69 W/m²K (≈ 0.65 Btu/h·ft²·°F, número imperial redondo; el vidrio sencillo estimado es ~5.8), U de una losa = 80 W/m²K (imposible), absortancia 0.7 en los tipos "Por defecto" y sin U en muros ni techos. Los 29 muros son de un solo material ("Yeso", 15 cm, sin capas) y todos están marcados como exteriores (293 m², contra ~96 m² expuestos). Los espacios suman 345 m² netos, contra 185.4 m² acondicionados. Corregir el modelo (capas reales, `IsExternal`, espacios) antes de usarlo para la simulación o para carbono incorporado. El gbXML y los Excel del zip no están en el equipo de trabajo.
 
 ## 8. Mejoras futuras pensando en el dashboard final
 
 - **PMV/PPD como método secundario:** para espacios con equipo de clima, agregar una columna `PPD_pct` por periodo (sin horas).
-- **Carbono incorporado:** si se quiere el tradeoff completo, agregar `carbono_incorporado_kgCO2e` por escenario (necesita un dato por medida en kgCO₂e/m²).
+- **Carbono incorporado:** si se quiere el tradeoff completo, agregar `carbono_incorporado_kgCO2e` por escenario (necesita un factor por material con su fuente, dado por el usuario). Los volúmenes del IFC servirían una vez corregido el modelo (pendiente 8).
 - **Costo:** `costo_inversion_MXN` y `retorno_simple_anios` si después se evalúa la viabilidad económica.
-- **Varias viviendas:** `vivienda_id` ya existe; basta con apilar filas de PUE-02… cuando haya modelos. Ese es el camino hacia los arquetipos del índice SECIHTI.
+- **Varias viviendas:** ya funciona: un CSV por vivienda en `datos/` y el dashboard las une (hoy PUE-01 y PUE-02, ambas mock). Falta tener modelos reales; ese es el camino hacia los arquetipos del índice SECIHTI.
 - **Versionado del esquema:** agregar una columna `version_esquema` para que el dashboard detecte archivos viejos.
 - **Validación automática:** un script `validar_csv.py` con los chequeos de la skill (rangos, un solo base, filas esperadas).
 - **Cuartos de nuevo (si hiciera falta):** el modelo de v6 con `espacio_id` y fila TOTAL queda en el historial; reintroducirlo implicaría volver a agregar `espacios.csv` y la ponderación por área.
-- **Vistas del dashboard sugeridas:**
-  1. Tabla de escenarios (filtro nivel = clave).
-  2. Gráfica mensual de T_op contra la banda de confort por escenario, con T exterior máx/mín de referencia.
-  3. Dispersión Δconfort vs Δenergía (tradeoff).
+- **Vistas actuales del dashboard** (filtros: vivienda, periodo `clave` y escenario de la gráfica mensual):
+  1. Lectura rápida: escenarios dentro del rango, el más fuera del rango, mayor ahorro de energía y clima del periodo.
+  2. Tabla de escenarios con todos los valores (en pantallas angostas, una ficha por escenario).
+  3. T_op de cada escenario frente a la franja ASHRAE 55 del periodo.
+  4. Tradeoff: grados fuera del rango contra energía, con el nombre de cada escenario junto a su punto.
+  5. Mes a mes: T_op del escenario y del base contra la franja, con T exterior máx/mín de referencia.
 
 ## 9. Glosario corto
 
 - **T_op (temperatura operativa):** combina la temperatura del aire y la de las superficies; es la que "siente" la persona.
 - **t_pma (media exterior predominante):** promedio de la temperatura exterior de los días previos (aquí, la media del mes); es la base del método adaptativo.
 - **Método adaptativo:** criterio de ASHRAE 55 para espacios ventilados naturalmente; la temperatura aceptable se ajusta al clima reciente.
-- **Grados-hora:** suma de cuántos grados se pasó del límite en cada hora; mide la intensidad del disconfort.
+- **Rango aceptable (límites ASHRAE 55):** franja de T_op en la que la mayoría está a gusto; cambia con el clima de cada mes.
+- **Exceso / déficit:** grados por encima o por debajo de esa franja; 0 = dentro del rango.
 - **Cargas ideales:** energía que necesitaría un equipo perfecto para mantener la casa en confort; sirve para comparar escenarios.
 - **Medianera:** muro compartido con un vecino; se modela sin intercambio de calor (adiabático).

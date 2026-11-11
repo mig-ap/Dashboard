@@ -11,7 +11,7 @@ Usa esta skill cuando se trabaje el esquema de datos del dashboard de confort t�
 
 - **Estándar fijo:** el confort siempre se mide con **ASHRAE 55** (adaptativo); no hay otro criterio ni opción de configuración.
 - **Usuario final:** una persona de arquitectura que compara los tradeoffs de confort (y energía/carbono) de cambios a la vivienda. El CSV debe ser claro para ella: nombres legibles, un escenario = un conjunto de medidas, deltas contra el base ya calculados.
-- Una sola vivienda (PUE-01) con superficie fija. Lo que cambia entre corridas son **medidas** sobre la envolvente u operación (valor U de muros/techo/ventanas, SHGC, absortancia, sombreado, ventilación, velocidad del aire).
+- Una vivienda de trabajo (PUE-01; PUE-01 y PUE-02 tienen datos mock), cada una con superficie fija y analizada por separado. Lo que cambia entre corridas son **medidas** sobre la envolvente u operación (valor U de muros/techo/ventanas, SHGC, absortancia, sombreado, ventilación, velocidad del aire).
 - Cada escenario se simula y se compara contra el caso base en **confort térmico (ASHRAE 55)**, **energía** y **carbono**.
 - Todo vive en **un solo CSV** que el dashboard lee sin hacer uniones entre tablas.
 - Interesan sobre todo el **mes caliente**, el **mes frío** y el **año**. No hay filas diarias.
@@ -48,10 +48,10 @@ Formato: UTF-8, separador coma, punto decimal, encabezados en snake_case sin ace
 
 | Columna | Unidad | Regla / fuente |
 |---|---|---|
-| vivienda_id | — | config (PUE-01) |
+| vivienda_id | — | config (p. ej. PUE-01) |
 | escenario_id, escenario_nombre | — | tabla de escenarios (ESC-00 = base) |
 | es_base | Si/No | exactamente un escenario Si |
-| U_muro_ext, U_techo, U_ventana | W/m²K | valor U del elemento completo, de archivo o del usuario |
+| U_muro_ext, U_techo, U_ventana | W/m²K | valor U del elemento completo, de archivo o del usuario (nunca los valores por defecto de Revit del IFC/gbXML) |
 | SHGC_ventana | 0–1 | ídem |
 | absortancia_muro, absortancia_techo | 0–1 | ídem |
 | sombreado_m | m | profundidad de volado/alero |
@@ -69,7 +69,7 @@ Formato: UTF-8, separador coma, punto decimal, encabezados en snake_case sin ace
 | exceso_sobre_limite_C | °C | máx(0, T_op − límite superior); en `anual`, el del peor mes |
 | deficit_bajo_limite_C | °C | máx(0, límite inferior − T_op); en `anual`, el del peor mes |
 | energia_total_kWh | kWh | enfriamiento + calefacción del simulador (cargas ideales); año = suma de meses; se convierte a eléctrica solo con COP/eficiencia dados |
-| carbono_kgCO2e | kgCO₂e | energia_total × factor_emision (solo si el factor fue dado) |
+| carbono_kgCO2e | kgCO₂e | energia_total_kWh × factor_emision_kgCO2e_kWh (solo si el factor fue dado) |
 | delta_T_operativa_C | °C | contra el base, mismo periodo |
 | delta_energia_pct | % | ídem; vacío si la base es 0. El delta de carbono sería igual (mismo factor), por eso no existe |
 | aceptabilidad_pct | % | config (80 o 90) |
@@ -89,6 +89,7 @@ Detalle completo, con ejemplo numérico y limitaciones: `metodologia_calculo.md`
 ## 5. Procedimiento
 
 1. **Inventario.** Lista los archivos dados y qué columna del esquema puede salir de cada uno:
+   - `PUE-01_Diana.ifc`: geometría para el simulador. Sus U, absortancias y materiales son por defecto de Revit (ventanas U 3.69, una losa U 80, muros de "Yeso" sin capas, todos marcados exteriores): no se usan como parámetros (ver pendiente 8 del contexto).
    - `Indice_viviendas_Puebla_SECIHTI.xlsx`, hoja `IFC_espacios`: ya no aporta columnas al CSV (el área total no se reporta).
    - `gbXML_PUE-01_analisis.xlsx`: volúmenes y avisos de calidad. Los valores térmicos del gbXML son **por defecto de Revit** (Madrid, oficina, R-13…) y no se usan como parámetros de escenario.
    - Tabla de escenarios / medidas que dé el usuario: parámetros U, SHGC, etc.
@@ -105,7 +106,7 @@ Detalle completo, con ejemplo numérico y limitaciones: `metodologia_calculo.md`
 4. **Valida** antes de entregar:
    - Filas = escenarios con resultados × 15.
    - Un solo `es_base = Si`, y sus deltas son 0.
-   - Para cada escenario y periodo: T_ext_min ≤ T_ext_media ≤ T_ext_max; limite_inf < limite_sup; exceso y déficit ≥ 0 y nunca ambos > 0 en un mes; mes_caliente y mes_frio idénticos a su mes; T_operativa_C idéntica a la del archivo del simulador.
+   - Para cada escenario y periodo: T_ext_min_C ≤ T_ext_media_C ≤ T_ext_max_C; limite_inf_C < limite_sup_C; exceso y déficit ≥ 0 y nunca ambos > 0 en un mes; mes_caliente y mes_frio idénticos a su mes; T_operativa_C idéntica a la del archivo del simulador.
    - Los resultados no tienen `mes` repetido (un solo valor por mes y escenario).
    - `mes` lleno en mes_caliente/mes_frio.
    - Abre el log y revisa cada faltante: ¿de verdad no estaba en ningún archivo?

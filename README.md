@@ -8,11 +8,15 @@ Proyecto de becario dentro del proyecto SECIHTI de descarbonización de vivienda
 
 1. **Backend (`backend/`)**: toma los resultados del simulador de cada escenario (un valor por mes) y genera **un CSV por vivienda** con los indicadores de confort.
 2. **Datos (`datos/`)**: aquí se guardan esos CSV. El dashboard lee **todos** los `.csv` de esta carpeta, sin importar cuántos sean ni de cuántas viviendas.
-3. **Dashboard (`dashboard/`)**: página web que muestra, por vivienda:
+3. **Dashboard (`dashboard/`)**: página web que muestra, por vivienda y periodo (año, mes más caliente o mes más frío):
+   - una lectura rápida: cuántos escenarios quedan dentro del rango, cuál queda más fuera, cuál ahorra más energía y el clima del periodo,
+   - una guía para leer cada término,
    - una tabla con cada escenario frente al caso base,
    - la temperatura operativa de cada escenario frente a la franja aceptable de ASHRAE 55,
    - el *tradeoff* confort contra energía,
    - la evolución mes a mes del escenario elegido frente al base.
+
+   Se ve completa en pantallas de computadora, tableta y celular.
 
 ## Cómo lo hace
 
