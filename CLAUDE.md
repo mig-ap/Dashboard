@@ -8,6 +8,7 @@ Thermal-comfort dashboard for an intern project inside the SECIHTI housing-decar
 
 Layout:
 - `backend/generar_csv_confort.py` — the whole pipeline (pandas/numpy, `backend/requirements.txt`). Source of truth.
+- `backend/importacion/` — stdlib-only import tools: `extraer_ifc.py` (IFC → geometry + thermal properties flagged when they look like Revit defaults), `clima_por_ubicacion.py` (monthly outdoor temperature from a public database by place/period: Open-Meteo ERA5-Land, optional NASA POWER cross-check), `calcular_u.py` (ISO 6946 U from layers, every conductivity with a cited source), `armar_entradas.py` (trazabilidad.csv → escenarios/config; only `confirmado` rows). Synced into the skill by `empaquetar_skill.py`.
 - `backend/mock/crear_mock.py` — fake inputs into `backend/mock/entradas/<vivienda>/` (gitignored); it stands in for the simulator (monthly `resultados_<ESC>.csv` + `clima.csv`).
 - `datos/` — output CSVs. The dashboard reads **every** `.csv` here (any number of dwellings); `_log.md` files are ignored by it.
 - `dashboard/index.html` — static page (Chart.js + PapaParse from cdnjs). `dashboard/servidor.py` (stdlib only) serves it plus `/api/csv` (list of CSVs in `datos/`) and `/datos/<file>.csv`. Without the server the page only works via its multi-file picker.
@@ -41,4 +42,5 @@ Rules that must be preserved:
 - Single zone: no `espacio_id`; reducing a multi-room model to one value happens before the script.
 - Thermal energy is converted to electric only if `energia_tipo=termica` and COP/efficiency are given; carbon is operational only (energy × given factor), so only `delta_energia_pct` exists.
 - Adaptive method is valid only for prevailing mean 10–33.5 °C; months outside get no limits or exceedance/deficit and are reported in the log.
+- Data origin priority: project file (not a program default) → public database with exact URL/document+year → datasheet or standard table → standard constants → explicit user statement. Never values from memory, never own simulation; T_op and energy only from the project simulator. Every imported value goes through `trazabilidad.csv` (origen, fuente, estado).
 - Each scenario row carries the full state of the house (all 8 parameters); the dashboard shows only those that differ from the base.

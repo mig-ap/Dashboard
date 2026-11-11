@@ -32,6 +32,9 @@ import argparse, os, sys
 import numpy as np
 import pandas as pd
 
+# la consola o un archivo redirigido en Windows puede no admitir todos los caracteres
+sys.stdout.reconfigure(errors="backslashreplace")
+
 PARAMS = ["U_muro_ext", "U_techo", "U_ventana", "SHGC_ventana", "absortancia_muro",
           "absortancia_techo", "ventilacion_ach", "vel_aire_m_s"]
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -235,7 +238,8 @@ def main():
             filas.append({**r, **comunes, "periodo": per, "mes": mes,
                           "carbono_kgCO2e": r["energia_total_kWh"] * factor})
     if not filas:
-        sys.exit("Sin filas generadas: revisar el log")
+        escribir_log(a.salida, 0, 0)
+        sys.exit(f"Sin filas generadas: faltan los resultados del simulador (archivo_resultados). Detalle en {os.path.splitext(a.salida)[0]}_log.md")
     df = pd.DataFrame(filas).reindex(columns=COLUMNAS)
     # deltas contra base (mismo periodo). Grados fuera del rango = exceso + déficit:
     # negativo = el escenario queda más cerca del rango que el base
@@ -252,12 +256,15 @@ def main():
     df[num_cols] = df[num_cols].round(2)
     df["mes"] = pd.to_numeric(df["mes"], errors="coerce").astype("Int64")
     df.to_csv(a.salida, index=False, encoding="utf-8")
-    with open(os.path.splitext(a.salida)[0] + "_log.md", "w", encoding="utf-8") as f:
-        f.write(f"# Log de generación — {os.path.basename(a.salida)}\n\n")
-        f.write(f"Filas: {len(df)} · Escenarios: {df['escenario_id'].nunique()}\n\n")
+    escribir_log(a.salida, len(df), df["escenario_id"].nunique())
+    print(f"OK: {len(df)} filas → {a.salida}")
+
+def escribir_log(salida, n_filas, n_escenarios):
+    with open(os.path.splitext(salida)[0] + "_log.md", "w", encoding="utf-8") as f:
+        f.write(f"# Log de generación — {os.path.basename(salida)}\n\n")
+        f.write(f"Filas: {n_filas} · Escenarios: {n_escenarios}\n\n")
         for t, titulo in [("faltantes", "Datos faltantes (celdas vacías)"), ("supuestos", "Supuestos de método aplicados"), ("avisos", "Avisos")]:
             f.write(f"## {titulo}\n\n" + ("\n".join(f"- {m}" for m in LOG[t]) or "- Ninguno") + "\n\n")
-    print(f"OK: {len(df)} filas → {a.salida}")
 
 if __name__ == "__main__":
     main()

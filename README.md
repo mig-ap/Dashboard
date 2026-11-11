@@ -40,12 +40,13 @@ backend/
   requirements-dev.txt     + pythermalcomfort, solo para verificar
   pruebas/                 validación de fórmulas contra pythermalcomfort
   mock/crear_mock.py       crea entradas de prueba
+  importacion/             IFC/Revit y bases de datos → entradas del esquema (solo Python estándar)
 datos/                     CSV que lee el dashboard (agrega aquí los tuyos)
 dashboard/
   index.html               el dashboard
   servidor.py              servidor local (solo Python estándar)
 docs/                      metodología de cálculo, contexto y decisiones
-.claude/skills/            skill de Claude Code para trabajar el esquema
+.claude/skills/            skill de Claude para importar datos y armar el esquema
 herramientas/              utilidades (empaquetar la skill)
 ```
 
@@ -103,6 +104,26 @@ Con datos reales necesitas cuatro tipos de archivo (el formato completo está al
 
 Revisa siempre el `_log.md` que se genera junto al CSV: dice qué quedó vacío y qué dato hace falta.
 
-## Para Claude Code
+## Importar datos de Revit/IFC con Claude (skill)
 
-El repositorio incluye la skill `esquema-confort-termico` en `.claude/skills/`, que se activa sola al abrir Claude Code en esta carpeta. Si cambias `backend/generar_csv_confort.py` o `docs/contexto_esquema_confort.md`, ejecuta `python herramientas/empaquetar_skill.py` para actualizar la copia de la skill y generar `dist/esquema-confort-termico.skill`.
+La skill `esquema-confort-termico` le enseña a Claude a armar el esquema a partir de los archivos del proyecto **sin inventar datos**:
+
+- **Del IFC** saca la geometría y señala lo que no sirve: ubicación y valores térmicos por defecto de Revit, U imposibles, muros sin capas.
+- **El clima** lo obtiene de una base de datos pública según la ubicación y el periodo que elijas: reanálisis ERA5-Land vía Open-Meteo, con contraste opcional contra NASA POWER. Guarda la URL exacta para que cualquiera lo verifique.
+- **Cada valor** queda en una trazabilidad con su origen, su fuente y su estado (confirmado, revisar o faltante). Lo que no tiene fuente se queda vacío y va a una lista de pendientes.
+- **Nunca simula.** La temperatura operativa y la energía solo vienen de los resultados del simulador del proyecto.
+
+**Instalarla en Claude Cowork o claude.ai:** genera el paquete con `python herramientas/empaquetar_skill.py` y sube `dist/esquema-confort-termico.skill` en la sección de Skills de la configuración de Claude. Después basta con pedir, por ejemplo: "importa este IFC y arma el esquema de confort de la vivienda".
+
+**En Claude Code** la skill se activa sola al abrir esta carpeta.
+
+Los scripts también se pueden usar a mano, desde `backend/importacion/`:
+
+```bash
+python backend/importacion/extraer_ifc.py modelo.ifc --salida trabajo/
+python backend/importacion/clima_por_ubicacion.py --lugar Tlaxcalancingo --municipio "San Andrés Cholula" --desde 2015 --hasta 2024 --verificar-nasa --salida trabajo/
+python backend/importacion/calcular_u.py capas_muro.csv --elemento muro
+python backend/importacion/armar_entradas.py trazabilidad.csv trabajo/trazabilidad_ifc.csv trabajo/trazabilidad_clima.csv --salida trabajo/entradas/
+```
+
+Si cambias `backend/` o `docs/`, ejecuta `python herramientas/empaquetar_skill.py` para actualizar la copia de la skill.

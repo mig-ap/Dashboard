@@ -57,7 +57,7 @@ Documentación de pythermalcomfort: <https://pythermalcomfort.readthedocs.io/> (
 ### Paso 1. Clima por periodo — función `leer_clima`
 
 - **Con EPW:** para cada mes, máximo, mínimo y promedio de las 8 760 temperaturas horarias; para el año, lo mismo sobre todas las horas.
-- **Con `clima.csv`:** se toman los valores tal cual. Si no trae fila `anual`, el año usa el máximo y el mínimo de los meses, y la media **ponderada por los días de cada mes** (es el promedio exacto del año si las medias mensuales son promedios de todas las horas). Se anota como supuesto en el log.
+- **Con `clima.csv`:** se toman los valores tal cual. `backend/importacion/clima_por_ubicacion.py` lo crea desde una base de datos pública (reanálisis ERA5-Land de ECMWF vía Open-Meteo) con la ubicación y el periodo dados: por mes, el máximo, el mínimo y el promedio de todas las horas de ese mes en el periodo, con la URL de consulta en `clima_fuente.json`. Si no trae fila `anual`, el año usa el máximo y el mínimo de los meses, y la media **ponderada por los días de cada mes** (es el promedio exacto del año si las medias mensuales son promedios de todas las horas). Se anota como supuesto en el log.
 
 ### Paso 2. Temperatura media exterior predominante, *t_pma* — `main`
 

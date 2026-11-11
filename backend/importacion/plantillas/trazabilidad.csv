@@ -1,0 +1,17 @@
+escenario_id,campo,valor,unidad,origen,fuente,estado,nota
+,vivienda_id,,,usuario,,faltante,identificador de la vivienda (p. ej. PUE-01)
+,aceptabilidad_pct,,%,usuario,,faltante,80 o 90 (criterio ASHRAE 55 del proyecto)
+,factor_emision_kgCO2e_kWh,,kgCO2e/kWh,base_de_datos,,faltante,publicación oficial vigente del factor de emisión de la red eléctrica: documento y año
+,energia_tipo,,,usuario,,faltante,electrica o termica (cómo entrega la energía el simulador)
+,COP_enfriamiento,,,ficha_tecnica,,faltante,solo si energia_tipo = termica
+,eficiencia_calefaccion,,,ficha_tecnica,,faltante,solo si energia_tipo = termica
+ESC-00,escenario_nombre,,,usuario,,faltante,descripción corta del caso base
+ESC-00,es_base,Si,,usuario,plantilla,confirmado,el primer escenario es el base; cambiar si no
+ESC-00,U_muro_ext,,W/m²K,,,faltante,ficha técnica o calcular_u.py con capas y conductividades citadas
+ESC-00,U_techo,,W/m²K,,,faltante,ficha técnica o calcular_u.py con capas y conductividades citadas
+ESC-00,U_ventana,,W/m²K,,,faltante,ficha técnica del vidrio o la ventana
+ESC-00,SHGC_ventana,,,,,faltante,ficha técnica del vidrio
+ESC-00,absortancia_muro,,,,,faltante,ficha técnica del acabado o medición
+ESC-00,absortancia_techo,,,,,faltante,ficha técnica del acabado o impermeabilizante o medición
+ESC-00,ventilacion_ach,,1/h,,,faltante,supuesto de operación que decide la persona usuaria o prueba de hermeticidad
+ESC-00,vel_aire_m_s,,m/s,,,faltante,velocidad del aire interior supuesta (ventilador)
