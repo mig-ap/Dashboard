@@ -18,30 +18,28 @@ t = pd.date_range("2001-01-01", periods=8760, freq="h")
 rng = np.random.default_rng(42)
 doy, hr = t.day_of_year.values, t.hour.values
 # clima sintético tipo Puebla (valores mensuales aproximados, inventados para el mock):
-# mes más caliente mayo, más frío enero; lluvias jun-sep = más húmedo y menos oscilación diaria
+# mes más caliente mayo, más frío enero; lluvias jun-sep = menos oscilación diaria
 T_MES = [13.3, 14.6, 16.8, 18.5, 19.0, 18.5, 17.6, 17.7, 17.4, 16.3, 14.8, 13.6]  # media °C
 OSC_MES = [8.0, 8.5, 8.5, 8.0, 7.5, 6.0, 5.0, 5.0, 5.0, 6.0, 7.0, 7.5]          # semiamplitud diaria °C
-HR_MES = [55, 50, 45, 48, 55, 70, 75, 75, 78, 70, 62, 58]                         # HR media %
 mitad = np.array([15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349])       # día juliano a mitad de cada mes
 mensual = lambda v: np.interp(doy, np.r_[mitad[-1] - 365, mitad, mitad[0] + 365], np.r_[v[-1], v, v[0]])
 diario = np.sin((hr - 9) / 24 * 2 * np.pi)  # máx ~15 h, mín ~3 h
 te = args.ajuste_clima + mensual(T_MES) + mensual(OSC_MES) * diario + rng.normal(0, 0.8, len(t))
-hre = np.clip(mensual(HR_MES) - 18 * diario + rng.normal(0, 5, len(t)), 10, 100)
 sol = np.clip(np.sin((hr - 6) / 12 * np.pi), 0, None)
 
-# escenario: U_muro, U_techo, U_ventana, SHGC, abs_muro, abs_techo, sombreado, ach, vel_aire
+# escenario: U_muro, U_techo, U_ventana, SHGC, abs_muro, abs_techo, ach, vel_aire
 ESC = [
-    ("ESC-00", "Base (block, losa, vidrio sencillo)", "Si", 2.5, 3.0, 5.8, 0.85, 0.6, 0.6, 0.0, 0.5, 0.1),
-    ("ESC-01", "Aislamiento en techo", "No", 2.5, 0.6, 5.8, 0.85, 0.6, 0.3, 0.0, 0.5, 0.1),
-    ("ESC-02", "Muro aislado + techo aislado", "No", 0.8, 0.6, 5.8, 0.85, 0.6, 0.3, 0.0, 0.5, 0.1),
-    ("ESC-03", "Aislamiento + vidrio doble + volado", "No", 0.8, 0.6, 2.8, 0.50, 0.4, 0.3, 0.6, 0.5, 0.1),
-    ("ESC-04", "Todo lo anterior + ventilación nocturna y ventilador", "No", 0.8, 0.6, 2.8, 0.50, 0.4, 0.3, 0.6, 3.0, 0.9),
+    ("ESC-00", "Base (block, losa, vidrio sencillo)", "Si", 2.5, 3.0, 5.8, 0.85, 0.6, 0.6, 0.5, 0.1),
+    ("ESC-01", "Aislamiento en techo", "No", 2.5, 0.6, 5.8, 0.85, 0.6, 0.3, 0.5, 0.1),
+    ("ESC-02", "Muro aislado + techo aislado", "No", 0.8, 0.6, 5.8, 0.85, 0.6, 0.3, 0.5, 0.1),
+    ("ESC-03", "Aislamiento + vidrio doble", "No", 0.8, 0.6, 2.8, 0.50, 0.4, 0.3, 0.5, 0.1),
+    ("ESC-04", "Todo lo anterior + ventilación nocturna y ventilador", "No", 0.8, 0.6, 2.8, 0.50, 0.4, 0.3, 3.0, 0.9),
 ]
 filas = []
-for eid, nom, base, um, ut, uv, shgc, am, at, som, ach, v in ESC:
+for eid, nom, base, um, ut, uv, shgc, am, at, ach, v in ESC:
     # balance burdo inventado: interior = exterior (media 24 h) + ganancias / conductancia de la envolvente
     G = um + 1.2 * ut + 0.3 * uv + 0.35 * ach                      # conductancia relativa (ventilar acopla al exterior)
-    q_sol = sol * (am * 3 + at * 4 + shgc * 6 * (1 - som * 0.3))   # ganancia solar relativa
+    q_sol = sol * (am * 3 + at * 4 + shgc * 6)                     # ganancia solar relativa
     te24 = pd.Series(te).rolling(24, min_periods=1).mean().values
     ta = te24 + 8 * (q_sol + 3) / (G + 4) + np.clip(0.08 * G, 0.2, 0.7) * (te - te24)
     tr = ta + 0.04 * q_sol * ut - 0.2
@@ -49,18 +47,17 @@ for eid, nom, base, um, ut, uv, shgc, am, at, som, ach, v in ESC:
     enf = np.clip(ta - 26, 0, None) * 0.16 * (1 + 0.1 * G)
     cal = np.clip(18 - ta, 0, None) * 0.11 * (1 + 0.1 * G)
     h = pd.DataFrame({"mes": t.month, "T_operativa_C": 0.5 * ta + 0.5 * tr,
-                      "HR_pct": np.clip(18 + 0.6 * hre - 1.0 * (ta - 22), 15, 95),
                       "energia_enfriamiento_kWh": enf, "energia_calefaccion_kWh": cal})
-    # salida tipo simulador: un valor por mes y uno anual (T_op y HR medias, energía sumada)
-    agg = {"T_operativa_C": "mean", "HR_pct": "mean", "energia_enfriamiento_kWh": "sum", "energia_calefaccion_kWh": "sum"}
+    # salida tipo simulador: un valor por mes y uno anual (T_op media, energía sumada)
+    agg = {"T_operativa_C": "mean", "energia_enfriamiento_kWh": "sum", "energia_calefaccion_kWh": "sum"}
     res = h.groupby("mes").agg(agg)
     res.loc["anual"] = h.agg(agg)
     arch = f"resultados_{eid}.csv"
-    res.round({"T_operativa_C": 2, "HR_pct": 1, "energia_enfriamiento_kWh": 1, "energia_calefaccion_kWh": 1}
+    res.round({"T_operativa_C": 2, "energia_enfriamiento_kWh": 1, "energia_calefaccion_kWh": 1}
               ).reset_index().to_csv(os.path.join(d, arch), index=False)
-    filas.append([eid, nom, base, arch, um, ut, uv, shgc, am, at, som, ach, v])
+    filas.append([eid, nom, base, arch, um, ut, uv, shgc, am, at, ach, v])
 pd.DataFrame(filas, columns=["escenario_id", "escenario_nombre", "es_base", "archivo_resultados", "U_muro_ext", "U_techo",
-    "U_ventana", "SHGC_ventana", "absortancia_muro", "absortancia_techo", "sombreado_m", "ventilacion_ach", "vel_aire_m_s"]
+    "U_ventana", "SHGC_ventana", "absortancia_muro", "absortancia_techo", "ventilacion_ach", "vel_aire_m_s"]
     ).to_csv(os.path.join(d, "escenarios.csv"), index=False)
 g = pd.Series(te).groupby(t.month)
 clima = pd.DataFrame({"T_ext_max_C": g.max(), "T_ext_min_C": g.min(), "T_ext_media_C": g.mean()})

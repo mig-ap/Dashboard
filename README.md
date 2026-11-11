@@ -1,6 +1,6 @@
 # Dashboard de confort térmico
 
-Herramienta para comparar **cambios a una vivienda** (aislamiento, vidrios, sombreado, ventilación…) y ver cuánto mejoran el **confort térmico según ASHRAE 55**, y cuánto cuestan en **energía** y **carbono**. Está pensada para que una persona de arquitectura pueda leer los resultados sin conocimientos de simulación.
+Herramienta para comparar **cambios a una vivienda** (aislamiento, vidrios, acabados, ventilación…) y ver cuánto mejoran el **confort térmico según ASHRAE 55**, y cuánto cuestan en **energía** y **carbono**. Está pensada para que una persona de arquitectura pueda leer los resultados sin conocimientos de simulación.
 
 Proyecto de becario dentro del proyecto SECIHTI de descarbonización de vivienda en Puebla. Los datos incluidos (`PUE-01`, `PUE-02`) son **de prueba (mock)** y no representan casas reales.
 
@@ -11,7 +11,7 @@ Proyecto de becario dentro del proyecto SECIHTI de descarbonización de vivienda
 3. **Dashboard (`dashboard/`)**: página web que muestra, por vivienda y periodo (año, mes más caliente o mes más frío):
    - una lectura rápida: cuántos escenarios quedan dentro del rango, cuál queda más fuera, cuál ahorra más energía y el clima del periodo,
    - una guía para leer cada término,
-   - una tabla con cada escenario frente al caso base,
+   - una tabla con cada escenario frente al caso base y las medidas que lo distinguen,
    - la temperatura operativa de cada escenario frente a la franja aceptable de ASHRAE 55,
    - el *tradeoff* confort contra energía,
    - la evolución mes a mes del escenario elegido frente al base.
@@ -20,16 +20,16 @@ Proyecto de becario dentro del proyecto SECIHTI de descarbonización de vivienda
 
 ## Cómo lo hace
 
-- **Una vivienda = una zona.** Un simulador preciso, alimentado con los parámetros de cada escenario, entrega la temperatura operativa y la humedad de **un punto central de la casa**, lejos de los muros, como **un valor por mes** (y uno anual). El script no calcula ni resume la temperatura operativa: la toma tal cual.
-- **Solo el clima exterior lleva máximo y mínimo.** La T operativa y la humedad son un solo valor por periodo.
+- **Una vivienda = una zona.** Un simulador preciso, alimentado con los parámetros de cada escenario, entrega la temperatura operativa de **un punto central de la casa**, lejos de los muros, como **un valor por mes** (y uno anual). El script no calcula ni resume la temperatura operativa: la toma tal cual.
+- **Solo el clima exterior lleva máximo y mínimo.** La T operativa es un solo valor por periodo. No se reporta humedad: no entra en ASHRAE 55 adaptativo.
 - **ASHRAE 55, método adaptativo, siempre.** Con la temperatura exterior media del mes se calcula el rango aceptable de ese mes (banda de 80 % o 90 % de aceptabilidad; el límite superior sube si hay movimiento de aire) y cuánto se sale de él la T operativa (exceso/déficit). El año no tiene límite propio: su exceso/déficit es el del peor mes.
-- **Comparación contra el base.** Cada escenario trae la diferencia contra el caso base en T operativa y energía.
+- **Comparación contra el base.** Cada escenario trae la diferencia contra el caso base en grados fuera del rango (negativo = mejora) y en energía.
 - **No inventa datos.** Si falta un dato, la celda queda vacía y se anota en un log (`<archivo>_log.md`).
 
 Una fila del CSV = escenario × periodo (15 filas por escenario). Documentación detallada:
 
 - [`docs/metodologia_calculo.md`](docs/metodologia_calculo.md): **todas las fórmulas** (ASHRAE 55 adaptativo), paso a paso, con un ejemplo numérico, supuestos y limitaciones. Las fórmulas están escritas en el propio script; la única librería de confort, `pythermalcomfort`, solo se usa para verificarlas (`python backend/pruebas/validar_ashrae55.py`).
-- [`docs/contexto_esquema_confort.md`](docs/contexto_esquema_confort.md): las 30 columnas y el historial de decisiones del esquema.
+- [`docs/contexto_esquema_confort.md`](docs/contexto_esquema_confort.md): las 27 columnas y el historial de decisiones del esquema.
 
 ## Estructura
 
@@ -96,9 +96,9 @@ Con datos reales necesitas cuatro tipos de archivo (el formato completo está al
 
 | Archivo | Quién lo llena | Contenido |
 |---|---|---|
-| `escenarios.csv` | a mano | un renglón por escenario: id, nombre, si es el base, archivo de resultados y los 9 parámetros de la medida (U de muro/techo/ventana, SHGC, absortancias, sombreado, ventilación, velocidad del aire) |
+| `escenarios.csv` | a mano | un renglón por escenario: id, nombre, si es el base, archivo de resultados y los 8 parámetros de la medida (U de muro/techo/ventana, SHGC, absortancias, ventilación, velocidad del aire) |
 | `config.csv` | a mano | `vivienda_id`, `aceptabilidad_pct` (80 o 90) y, si se tienen, factor de emisión y COP/eficiencias |
-| `resultados_<escenario>.csv` | simulador | una fila por mes (`mes` = 1–12) y, si se tiene, una fila `anual`: `T_operativa_C` del punto central, `HR_pct`, energía de enfriamiento y calefacción |
+| `resultados_<escenario>.csv` | simulador | una fila por mes (`mes` = 1–12) y, si se tiene, una fila `anual`: `T_operativa_C` del punto central, energía de enfriamiento y calefacción |
 | `clima.csv` (o un `--epw`) | clima | por mes: `T_ext_max_C`, `T_ext_min_C`, `T_ext_media_C` |
 
 Revisa siempre el `_log.md` que se genera junto al CSV: dice qué quedó vacío y qué dato hace falta.

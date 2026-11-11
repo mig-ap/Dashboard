@@ -39,7 +39,6 @@ Documentación de pythermalcomfort: <https://pythermalcomfort.readthedocs.io/> (
 | Símbolo | Columna | Unidad | Obligatoria |
 |---|---|---|---|
 | *t_o* | `T_operativa_C` | °C | sí |
-| *HR* | `HR_pct` | % | no (solo se reporta) |
 | — | `energia_enfriamiento_kWh`, `energia_calefaccion_kWh` | kWh | no |
 
 **Clima** (`--epw` horario, o `--clima` con una fila por mes):
@@ -49,7 +48,7 @@ Documentación de pythermalcomfort: <https://pythermalcomfort.readthedocs.io/> (
 | — | `T_ext_max_C`, `T_ext_min_C` | °C | máximo y mínimo horario del mes |
 | *t_ext,mes* | `T_ext_media_C` | °C | promedio horario del mes |
 
-**Escenario:** `vel_aire_m_s` (*V*), para el ajuste del límite superior. Los otros 8 parámetros (valores U, SHGC, absortancias, sombreado, ventilación) **describen** el escenario y alimentan al simulador, pero **no entran en ninguna fórmula del script**: su efecto ya está en la *t_o* que entrega el simulador.
+**Escenario:** `vel_aire_m_s` (*V*), para el ajuste del límite superior. Los otros 7 parámetros (valores U, SHGC, absortancias, ventilación) **describen** el escenario y alimentan al simulador, pero **no entran en ninguna fórmula del script**: su efecto ya está en la *t_o* que entrega el simulador.
 
 **Configuración** (`config.csv`): `aceptabilidad_pct` (80 o 90), `energia_tipo`, `COP_enfriamiento`, `eficiencia_calefaccion` y `factor_emision_kgCO2e_kWh`.
 
@@ -132,7 +131,7 @@ Periodos: `anual`, `mes_caliente`, `mes_frio` y cada mes (`ene` … `dic`). No s
 | Columna | Mes (`ene`…`dic`, `mes_caliente`, `mes_frio`) | Año (`anual`) |
 |---|---|---|
 | `T_ext_max_C`, `T_ext_min_C`, `T_ext_media_C` | del clima del mes | del clima del año |
-| `T_operativa_C`, `HR_pct` | fila del mes del simulador | fila `anual` del simulador; **vacía** si no la da (no se promedian meses) |
+| `T_operativa_C` | fila del mes del simulador | fila `anual` del simulador; **vacía** si no la da (no se promedian meses) |
 | `limite_sup_C`, `limite_inf_C` | pasos 3–4 | **vacíos**: el año no tiene un límite propio, cada mes tiene el suyo |
 | `exceso_sobre_limite_C`, `deficit_bajo_limite_C` | paso 5 | el del **peor mes** (máximo de los 12); **vacío** si falta la *t_o* de algún mes |
 
@@ -162,14 +161,16 @@ Después:
 Se compara cada escenario con el escenario base (`es_base = Si`) **en el mismo periodo**:
 
 $$
-\Delta T_{op} = T_{op}^{esc} - T_{op}^{base}
+\Delta_{fuera} = (\text{exceso} + \text{déficit})^{esc} - (\text{exceso} + \text{déficit})^{base}
 \qquad
 \Delta E\,[\%] = 100\,\frac{E^{esc} - E^{base}}{E^{base}} \quad (\text{vacío si } E^{base} = 0)
 $$
 
+`delta_fuera_rango_C` = $\Delta_{fuera}$; queda vacío si falta el exceso o el déficit del escenario o del base.
+
 No hay delta de carbono: con un solo factor de emisión sería idéntico al de energía.
 
-Interpretación para el dashboard: un Δ T_op **positivo** es mejora en un mes frío y empeora en un mes caliente; por eso el dashboard no lo colorea. Lo que dice si un escenario mejora el confort es el exceso/déficit.
+Interpretación: un $\Delta_{fuera}$ **negativo** es mejora (el escenario queda más cerca del rango que el base), y un $\Delta E$ negativo es ahorro. Hasta v9 se reportaba $\Delta T_{op}$, que no dice si el cambio es bueno: subir la T_op ayuda en frío y perjudica en calor.
 
 ### Paso 9. Redondeo
 
@@ -204,7 +205,7 @@ Con el ventilador, mayo queda dentro del rango. Sin él (*V* < 0.6 m/s) el lími
 4. **t_pma = media exterior del mes**, en lugar de una media móvil de 7–30 días previos (ver paso 2).
 5. **Una sola zona.** Se idealiza toda la vivienda con un punto central. No se capturan diferencias entre cuartos ni cerca de muros y ventanas.
 6. **Velocidad del aire.** Se usa la del escenario (constante), en escalones sin interpolar.
-7. **Humedad.** No afecta los límites del modelo adaptativo; solo se informa.
+7. **Humedad.** No afecta los límites del modelo adaptativo, así que desde v10 no se reporta; si el simulador entrega `HR_pct`, el script la ignora.
 8. **Exceso/déficit en el dashboard.** La gráfica de *tradeoff* suma `exceso_sobre_limite_C + deficit_bajo_limite_C` como un solo indicador de qué tan fuera del rango queda la vivienda. Esa suma la hace el dashboard, no está en el CSV.
 
 ## 6. Mapa función → paso

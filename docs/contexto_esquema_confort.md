@@ -7,7 +7,7 @@ Este documento guarda todo el contexto del **esquema de datos del dashboard de c
 - **Pregunta que responde el dashboard:** ¿qué cambios a la vivienda mejoran más el confort térmico, y cuánto cuestan en energía y carbono? Lo que más interesa son los casos límite (mes caliente y mes frío).
 - **Estándar fijo:** el confort siempre se mide con **ASHRAE 55** (método adaptativo). No es configurable: el script no tiene ninguna opción para cambiar de método.
 - **Usuario final:** una persona de arquitectura que usa el CSV/dashboard para comparar los tradeoffs que producen los cambios a la vivienda en el confort. Por eso el esquema debe poder leerse sin conocimientos de simulación: pocas columnas con nombres claros, un escenario = un conjunto de medidas arquitectónicas, y la comparación contra el base ya calculada (`delta_*`).
-- **Objetivo de la simulación:** obtener la temperatura (y humedad) operativa del inmueble, medida en **un punto central de la vivienda** para idealizar la temperatura y reducir la varianza cerca de las paredes. Desde v9 la temperatura operativa la entrega **un simulador preciso** alimentado con los parámetros de cada escenario, como **un valor por mes** (y uno anual) en `resultados_<escenario>.csv`; el script no la calcula ni la reduce a máximos/mínimos.
+- **Objetivo de la simulación:** obtener la temperatura operativa del inmueble, medida en **un punto central de la vivienda** para idealizar la temperatura y reducir la varianza cerca de las paredes. Desde v9 la temperatura operativa la entrega **un simulador preciso** alimentado con los parámetros de cada escenario, como **un valor por mes** (y uno anual) en `resultados_<escenario>.csv`; el script no la calcula ni la reduce a máximos/mínimos.
 - **Modelo (desde v7):** la vivienda se trata como **una sola zona, sin habitaciones**. Las condiciones de todos los cuartos se generalizan en un solo valor por periodo; no hay datos ni filas por cuarto.
 - **Herramienta asociada:** skill `esquema-confort-termico`, que contiene el esquema, las reglas y el script `generar_csv_confort.py` para armar el CSV desde los archivos dados, sin inventar datos.
 - **Repositorio:** `backend/` genera los CSV, `datos/` los guarda (el dashboard lee todos los `.csv` de esa carpeta, de cualquier número de viviendas), `dashboard/` los muestra, `docs/` tiene este contexto y `.claude/skills/` la skill.
@@ -51,18 +51,19 @@ Todos estaban en el zip "Re: Hola":
 | v7 | **Vivienda de una sola zona.** Se eliminan `espacios.csv`, `espacio_id`, `espacio_nombre`, `espacio_T_op_max/min`, la fila TOTAL, la ponderación por área y `evaluar_confort`. Una fila = escenario × periodo. El horario trae una sola serie para toda la vivienda; `area_m2` y `horario_ocupado` pasan a la config | El usuario pidió simplificar el modelo: generalizar las condiciones de las habitaciones y reducir los datos necesarios |
 | v8 | **Solo extremos, sin horas.** Se eliminan horas_*, pct_confort, grados-hora, ocupación (`ocupado`, `horario_ocupado`), HR, promedios (T_op_prom, T_ext_prom), T_ext_media_predominante, T_confort, desglose de energía, delta_pct_confort_pp, delta_carbono_pct, metodo_confort (constante), clo, met, area_m2 y los factores de emisión repetidos por fila. Los límites ASHRAE se reportan en la hora del extremo. 54 → 32 columnas | El usuario indicó que no importan las horas, solo el máximo y el mínimo, y que hay que reducir variables |
 | v8.1 | **Vuelve la humedad**, solo como extremos: `HR_max_pct` y `HR_min_pct` por periodo, de `HR_pct` del horario. 32 → 34 columnas | El usuario aclaró que el objetivo de la simulación es temperatura y humedad operativa, y pidió que la humedad regrese |
-| v9 (vigente) | **T_op del simulador, un valor por periodo.** El simulador (alimentado con los parámetros de `escenarios.csv`) entrega T_op y HR por mes (y anual) en `resultados_<escenario>.csv`, que sustituye al horario. Se eliminan T_op_max/min, mes_T_op_max/min, HR_max/min, delta_T_op_max/min, el cálculo de T_op desde aire + radiante y `dias_media_exterior`. Entran T_operativa_C, HR_pct, T_ext_media_C y delta_T_operativa_C. Los límites ASHRAE son del mes (t_pma = media exterior mensual); el año no tiene límite propio y su exceso/déficit es el del peor mes. Solo la T exterior conserva máx/mín. Clima por `--epw` o `--clima` mensual. 34 → 30 columnas | El usuario aclaró que la temperatura operativa sale de un simulador preciso a partir de los datos del Excel y que no es algo de máximos y mínimos; solo la exterior necesita máximo y mínimo |
+| v9 | **T_op del simulador, un valor por periodo.** El simulador (alimentado con los parámetros de `escenarios.csv`) entrega T_op y HR por mes (y anual) en `resultados_<escenario>.csv`, que sustituye al horario. Se eliminan T_op_max/min, mes_T_op_max/min, HR_max/min, delta_T_op_max/min, el cálculo de T_op desde aire + radiante y `dias_media_exterior`. Entran T_operativa_C, HR_pct, T_ext_media_C y delta_T_operativa_C. Los límites ASHRAE son del mes (t_pma = media exterior mensual); el año no tiene límite propio y su exceso/déficit es el del peor mes. Solo la T exterior conserva máx/mín. Clima por `--epw` o `--clima` mensual. 34 → 30 columnas | El usuario aclaró que la temperatura operativa sale de un simulador preciso a partir de los datos del Excel y que no es algo de máximos y mínimos; solo la exterior necesita máximo y mínimo |
+| v10 (vigente) | **Solo variables que influyen.** Se eliminan `sombreado_m` (ninguna fórmula lo usa; en PUE-01 solo la fachada norte está expuesta y las ventanas son ~10 % del muro), `HR_pct` (no entra en ASHRAE 55 adaptativo) y `nivel` (se deduce de `periodo`). `delta_T_operativa_C` se sustituye por `delta_fuera_rango_C` (Δ de exceso + déficit contra el base: negativo = mejora), porque un ΔT_op no dice si el cambio es bueno. 9 → 8 parámetros, 30 → 27 columnas. El dashboard muestra qué medidas cambian contra el base | El usuario pidió reducir las variables que no influyen en el protocolo de datos |
 
 **Principios que quedaron fijos:**
-1. **Solo lo que cambia el confort.** Los parámetros de escenario son propiedades del elemento completo (U, SHGC, absortancia, sombreado, ventilación, velocidad del aire), no sus materiales por capa.
+1. **Solo lo que cambia el confort.** Los parámetros de escenario son propiedades del elemento completo (U, SHGC, absortancia, ventilación, velocidad del aire), no sus materiales por capa. Una columna que no entra en ningún cálculo ni cambia la lectura no se agrega (v10).
 2. **Escenario = estado completo de la casa.** Cada fila trae todos los parámetros, no solo el que cambió.
-3. **Sin horas y sin recalcular al simulador.** No se cuentan horas. La T_op y la HR son las que da el simulador por periodo; el script no las promedia ni las reduce. Solo el clima exterior se reporta con máximo y mínimo.
-4. **Un solo CSV, sin uniones entre tablas.** El dashboard filtra por `nivel`, `periodo` y `escenario_id`.
+3. **Sin horas y sin recalcular al simulador.** No se cuentan horas. La T_op es la que da el simulador por periodo; el script no las promedia ni las reduce. Solo el clima exterior se reporta con máximo y mínimo.
+4. **Un solo CSV, sin uniones entre tablas.** El dashboard filtra por `periodo` y `escenario_id`.
 5. **No inventar.** Sin dato, la celda queda vacía y se anota en el log.
 6. **ASHRAE 55 siempre.** Ningún otro criterio de confort sustituye al estándar; PMV/PPD, si se agrega, es complementario.
 7. **Pensado para arquitectura.** Cada decisión de esquema se juzga por si una persona de arquitectura puede comparar medidas y sus tradeoffs de confort sin ayuda técnica.
 
-## 4. Esquema vigente (v9, 30 columnas)
+## 4. Esquema vigente (v10, 27 columnas)
 
 **Una fila = escenario × periodo** (la vivienda es una sola zona).
 - Periodos `clave`: anual, mes_caliente, mes_frio.
@@ -72,25 +73,24 @@ Todos estaban en el zip "Re: Hola":
 | Grupo | Columnas |
 |---|---|
 | Identificación | vivienda_id, escenario_id, escenario_nombre, es_base |
-| Escenario | U_muro_ext, U_techo, U_ventana, SHGC_ventana, absortancia_muro, absortancia_techo, sombreado_m, ventilacion_ach, vel_aire_m_s |
-| Tiempo | nivel, periodo, mes |
+| Escenario | U_muro_ext, U_techo, U_ventana, SHGC_ventana, absortancia_muro, absortancia_techo, ventilacion_ach, vel_aire_m_s |
+| Tiempo | periodo (anual, mes_caliente, mes_frio, ene…dic), mes |
 | Clima exterior | T_ext_max_C, T_ext_min_C, T_ext_media_C (la media es la t_pma del mes) |
 | Temp. operativa | T_operativa_C (del simulador) |
-| Humedad | HR_pct (del simulador) |
 | Límites ASHRAE 55 y margen | limite_sup_C, limite_inf_C (del mes; vacíos en `anual`), exceso_sobre_limite_C, deficit_bajo_limite_C (en `anual`: el del peor mes) |
 | Energía y carbono | energia_total_kWh, carbono_kgCO2e |
-| Contra el base | delta_T_operativa_C, delta_energia_pct |
+| Contra el base | delta_fuera_rango_C (Δ de exceso + déficit; negativo = mejora), delta_energia_pct |
 | Supuestos | aceptabilidad_pct |
 
-La tabla resumen que pidió el usuario (T_op, carbono y energía para mes caliente, mes frío y año) se obtiene filtrando `nivel = clave`.
+La tabla resumen que pidió el usuario (T_op, carbono y energía para mes caliente, mes frío y año) se obtiene filtrando `periodo` en `anual`, `mes_caliente` y `mes_frio`. Esas tres filas repiten datos de las mensuales: nunca se suman con ellas.
 
 **Formato:** UTF-8, coma, punto decimal, snake_case sin acentos, unidad en el nombre, celda vacía = sin dato.
 
 ## 5. Lógica de cálculo
 
 ```
-Usuario/archivos  → escenarios (9 parámetros) + config (supuestos)
-Simulador         → por mes (y anual), punto central: T_operativa, HR, energía
+Usuario/archivos  → escenarios (8 parámetros) + config (supuestos)
+Simulador         → por mes (y anual), punto central: T_operativa, energía
 EPW o clima.csv   → por mes: T_ext máx, mín y media (media = t_pma del mes)
 Script            → límites adaptativos del mes → exceso/déficit = T_op − límite
                   → año: T_op anual del simulador, exceso/déficit del peor mes, energía = suma de meses
@@ -106,7 +106,7 @@ Script            → límites adaptativos del mes → exceso/déficit = T_op �
 
 **Mes caliente y mes frío:** el mes con la media exterior mensual más alta y la más baja, según el clima usado.
 
-**Zona única:** la T_op y la HR son las del punto central que entrega el simulador. La energía es la de toda la vivienda. Si el simulador entrega varios cuartos, el usuario (o un paso previo fuera del script) los reduce a un solo valor antes de usar el script; el script no promedia cuartos.
+**Zona única:** la T_op es la del punto central que entrega el simulador. La energía es la de toda la vivienda. Si el simulador entrega varios cuartos, el usuario (o un paso previo fuera del script) los reduce a un solo valor antes de usar el script; el script no promedia cuartos.
 
 **Energía:** cargas para mantener la casa dentro de los límites ASHRAE (cargas ideales). Si el simulador da carga térmica, solo se convierte a eléctrica con un COP o eficiencia dados. La T_op y la energía salen de **dos corridas distintas** del mismo modelo: la T_op de una corrida sin climatización (libre evolución), que es la que evalúa el método adaptativo, y la energía de una corrida con cargas ideales (ver `metodologia_calculo.md`, supuesto 2).
 
@@ -121,7 +121,7 @@ Script            → límites adaptativos del mes → exceso/déficit = T_op �
 - Un solo CSV que pasa directo al dashboard.
 - Sin filas diarias ni horarias: el año, el mes caliente, el mes frío y cada mes cubren los casos que interesan.
 - No importan las horas (de confort, ocupadas, etc.); hay que reducir variables (v8).
-- La T operativa sale de un simulador preciso con los datos del Excel de escenarios, un valor por periodo; no se reporta como máximo y mínimo. Solo la T exterior lleva máximo y mínimo. La HR se trata igual que la T_op (v9).
+- La T operativa sale de un simulador preciso con los datos del Excel de escenarios, un valor por periodo; no se reporta como máximo y mínimo. Solo la T exterior lleva máximo y mínimo. Desde v10 no se reporta humedad ni volado, y el Δ de confort contra el base es el de grados fuera del rango (v10).
 - Se aceptaron los valores por defecto: energía = cargas ideales hasta los límites ASHRAE; carbono solo de operación; la vivienda se evalúa como una sola zona (v7), por lo que ya no se decide qué cuartos evaluar.
 
 ## 7. Pendientes y preguntas abiertas
@@ -146,8 +146,8 @@ Script            → límites adaptativos del mes → exceso/déficit = T_op �
 - **Cuartos de nuevo (si hiciera falta):** el modelo de v6 con `espacio_id` y fila TOTAL queda en el historial; reintroducirlo implicaría volver a agregar `espacios.csv` y la ponderación por área.
 - **Vistas actuales del dashboard** (filtros: vivienda, periodo `clave` y escenario de la gráfica mensual):
   1. Lectura rápida: escenarios dentro del rango, el más fuera del rango, mayor ahorro de energía y clima del periodo.
-  2. Tabla de escenarios con todos los valores (en pantallas angostas, una ficha por escenario).
-  3. T_op de cada escenario frente a la franja ASHRAE 55 del periodo.
+  2. Tabla de escenarios con todos los valores y qué medidas cambian contra el base (en pantallas angostas, una ficha por escenario).
+  3. T_op de cada escenario frente a la franja ASHRAE 55 del mes (se oculta en «Año», que no tiene franja propia).
   4. Tradeoff: grados fuera del rango contra energía, con el nombre de cada escenario junto a su punto.
   5. Mes a mes: T_op del escenario y del base contra la franja, con T exterior máx/mín de referencia.
 

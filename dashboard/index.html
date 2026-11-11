@@ -65,7 +65,12 @@ tbody tr:hover { background: var(--wash); }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
 .base { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--wash); border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
 .mejor { color: var(--good); font-weight: 600; } .peor { color: var(--bad); font-weight: 600; }
-footer { color: var(--muted); font-size: 12px; margin-top: 20px; text-align: center; }
+.cambios { display: block; font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.datos { margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; }
+.datos h2 { font-size: 13px; margin: 0; }
+.datos .fuente { flex: 1 1 260px; margin: 0; }
+.datos label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+footer { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: center; }
 @media (max-width: 1000px) { .tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 800px) { .grid { grid-template-columns: minmax(0, 1fr); } #escenario { max-width: 100%; } .barra label { flex: 1 1 140px; } }
 /* pantallas angostas: cada escenario es una ficha con sus datos en renglones */
@@ -109,12 +114,7 @@ footer { color: var(--muted); font-size: 12px; margin-top: 20px; text-align: cen
     <label>Escenario de la gráfica mensual
       <select id="escenario"></select>
     </label>
-    <button id="recargar" type="button">Recargar datos</button>
-    <label>Abrir CSV sin servidor
-      <input type="file" id="archivo" accept=".csv" multiple>
-    </label>
   </div>
-  <div class="fuente" id="fuente">Cargando datos…</div>
 
   <section class="tarjetas" aria-label="Lectura rápida">
     <div class="tarjeta"><div class="titulo">Escenarios dentro del rango ASHRAE 55</div><div class="valor" id="k-dentro">—</div><div class="detalle" id="k-dentro-d"></div></div>
@@ -129,7 +129,8 @@ footer { color: var(--muted); font-size: 12px; margin-top: 20px; text-align: cen
       <div><dt>Temperatura operativa (T_op)</dt><dd>La temperatura que "siente" una persona: combina el aire y las superficies. La entrega el simulador para el punto central de la casa, un valor por periodo.</dd></div>
       <div><dt>Rango aceptable ASHRAE 55</dt><dd>Franja de temperaturas en la que la mayoría de las personas está a gusto. Se ajusta al clima de cada mes (método adaptativo) y sube si hay ventilador.</dd></div>
       <div><dt>Exceso y déficit</dt><dd>Grados por encima (calor) o por debajo (frío) de la franja. 0 significa que el escenario está dentro del rango.</dd></div>
-      <div><dt>Δ vs base</dt><dd>Diferencia contra el caso base en el mismo periodo. En energía, un valor negativo es ahorro. Subir la T_op ayuda en frío y perjudica en calor.</dd></div>
+      <div><dt>Δ vs base</dt><dd>Diferencia contra el caso base en el mismo periodo. En grados fuera del rango y en energía, un valor negativo es mejora: más confort o ahorro.</dd></div>
+      <div><dt>Qué cambia</dt><dd>Debajo de cada escenario, las medidas que lo distinguen del caso base (valor del base → valor del escenario).</dd></div>
       <div><dt>Mes más caliente / más frío</dt><dd>El mes con la temperatura exterior media más alta o más baja del clima usado.</dd></div>
       <div><dt>Energía y carbono</dt><dd>Energía para enfriar y calentar del simulador; carbono = energía × factor de emisión de la red (solo operación).</dd></div>
     </dl>
@@ -142,13 +143,13 @@ footer { color: var(--muted); font-size: 12px; margin-top: 20px; text-align: cen
       <div class="tabla"><table id="tabla"></table></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="card-rango">
       <h2>Temperatura operativa frente al rango ASHRAE 55</h2>
       <p class="nota" id="nota-rango"></p>
       <div class="chart"><canvas id="c-rango" role="img" aria-label="Temperatura operativa de cada escenario y su rango aceptable"></canvas></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="card-tradeoff">
       <h2>Confort contra energía</h2>
       <p class="nota">Cada punto es un escenario. Abajo a la izquierda es mejor: menos grados fuera del rango y menos energía.</p>
       <div class="chart"><canvas id="c-tradeoff" role="img" aria-label="Grados fuera del rango contra energía de cada escenario"></canvas></div>
@@ -156,10 +157,17 @@ footer { color: var(--muted); font-size: 12px; margin-top: 20px; text-align: cen
 
     <section class="card full">
       <h2>Mes a mes: <span id="titulo-mensual"></span></h2>
+      <p class="nota" id="cambios-mensual"></p>
       <p class="nota">Línea de color: escenario elegido. Línea gris discontinua: caso base. Franja azul: rango aceptable ASHRAE 55 de cada mes. Líneas punteadas: temperatura exterior máxima y mínima.</p>
       <div class="chart alta"><canvas id="c-mensual" role="img" aria-label="Temperatura operativa mensual del escenario elegido y del caso base"></canvas></div>
     </section>
   </div>
+  <section class="datos" aria-label="Datos">
+    <h2>Datos</h2>
+    <div class="fuente" id="fuente">Cargando datos…</div>
+    <button id="recargar" type="button">Recargar datos</button>
+    <label>Abrir CSV sin servidor <input type="file" id="archivo" accept=".csv" multiple></label>
+  </section>
   <footer>Confort medido siempre con ASHRAE 55, método adaptativo · La tabla contiene todos los valores de las gráficas</footer>
 </main>
 
@@ -169,11 +177,16 @@ const SERIES = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const MES_NOMBRE = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const fmt = (v, d = 1) => v == null || isNaN(v) ? "—" : v.toLocaleString("es-MX", { minimumFractionDigits: d, maximumFractionDigits: d });
+const corto = v => v.toLocaleString("es-MX", { maximumFractionDigits: 2 });
 const signo = (v, d = 1) => v == null || isNaN(v) ? "—" : (v > 0 ? "+" : "") + fmt(v, d);
 const esc = t => String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 Chart.defaults.color = css("--ink-2");
 
+// parámetros del escenario (entradas del simulador), con nombre legible y unidad
+const PARAMS = { U_muro_ext: ["U muro", "W/m²K"], U_techo: ["U techo", "W/m²K"], U_ventana: ["U ventana", "W/m²K"],
+  SHGC_ventana: ["SHGC ventana", ""], absortancia_muro: ["absortancia muro", ""], absortancia_techo: ["absortancia techo", ""],
+  ventilacion_ach: ["ventilación", "ren/h"], vel_aire_m_s: ["velocidad del aire", "m/s"] };
 let todas = [], filas = [], escenarios = [], colores = {}, charts = {};
 const REQUERIDAS = ["vivienda_id", "escenario_id", "escenario_nombre", "es_base", "periodo", "T_operativa_C"];
 
@@ -231,6 +244,16 @@ const nombre = e => filas.find(r => r.escenario_id === e)?.escenario_nombre ?? e
 const esBase = e => String(filas.find(r => r.escenario_id === e)?.es_base).toLowerCase().startsWith("s");
 const fila = (e, per) => filas.find(r => r.escenario_id === e && r.periodo === per);
 const fuera = r => (r.exceso_sobre_limite_C || 0) + (r.deficit_bajo_limite_C || 0);
+// medidas que distinguen al escenario del base: "U techo 3 → 0.6 W/m²K"
+function queCambia(e) {
+  const eb = escenarios.find(esBase), r = fila(e, "anual") ?? filas.find(x => x.escenario_id === e);
+  const rb = eb && (fila(eb, "anual") ?? filas.find(x => x.escenario_id === eb));
+  if (!r || !rb) return "";
+  if (e === eb) return "Caso de referencia";
+  const lista = Object.entries(PARAMS).filter(([c]) => c in r && r[c] != null && rb[c] != null && r[c] !== rb[c])
+    .map(([c, [n, u]]) => `${n} ${corto(rb[c])} → ${corto(r[c])}${u ? " " + u : ""}`);
+  return lista.length ? lista.join(" · ") : "Mismos parámetros que el base";
+}
 
 function pintar() {
   const per = document.getElementById("periodo").value;
@@ -268,20 +291,19 @@ function tabla(per) {
   document.getElementById("nota-tabla").textContent = per === "anual"
     ? "Año completo. El año no tiene un rango propio: exceso y déficit son los del peor mes."
     : `${per === "mes_caliente" ? "Mes más caliente" : "Mes más frío"} según el clima: ${MES_NOMBRE[r0?.mes] ?? "?"}.`;
-  // verde = mejora contra el base, rojo = empeora; siempre con signo, nunca solo color.
-  // ΔT_op no se colorea: subir la temperatura es bueno en frío y malo en calor.
+  // verde = mejora contra el base, rojo = empeora; siempre con signo, nunca solo color
   const cls = v => v == null || isNaN(v) || v === 0 ? "" : (v < 0 ? "mejor" : "peor");
   const lim = r => r.limite_inf_C == null ? "—" : `${fmt(r.limite_inf_C)} – ${fmt(r.limite_sup_C)}`;
   const marca = (v, simbolo) => v > 0 ? `<span class="peor">${simbolo} ${fmt(v)}</span>` : fmt(v);
   document.getElementById("tabla").innerHTML = `<thead>
-    <tr><th>Escenario</th><th>T operativa<small>°C</small></th><th>Δ vs base<small>°C</small></th><th>Rango ASHRAE<small>°C</small></th>
-    <th>Exceso<small>°C, calor</small></th><th>Déficit<small>°C, frío</small></th><th>Humedad<small>%</small></th>
+    <tr><th>Escenario y qué cambia</th><th>T operativa<small>°C</small></th><th>Rango ASHRAE<small>°C</small></th>
+    <th>Exceso<small>°C, calor</small></th><th>Déficit<small>°C, frío</small></th><th>Δ fuera del rango<small>°C vs base</small></th>
     <th>Energía<small>kWh</small></th><th>Δ energía<small>vs base</small></th><th>Carbono<small>kgCO₂e</small></th></tr></thead><tbody>` +
     rs.map(r => `<tr>
-      <td><span class="dot" style="background:${colores[r.escenario_id]}"></span><strong>${esc(r.escenario_id)}</strong> — ${esc(r.escenario_nombre)}${esBase(r.escenario_id) ? '<span class="base">base</span>' : ""}</td>
-      <td>${fmt(r.T_operativa_C)}</td><td>${signo(r.delta_T_operativa_C)}</td><td>${lim(r)}</td>
+      <td><span class="dot" style="background:${colores[r.escenario_id]}"></span><strong>${esc(r.escenario_id)}</strong> — ${esc(r.escenario_nombre)}${esBase(r.escenario_id) ? '<span class="base">base</span>' : ""}<span class="cambios">${esc(queCambia(r.escenario_id))}</span></td>
+      <td>${fmt(r.T_operativa_C)}</td><td>${lim(r)}</td>
       <td>${marca(r.exceso_sobre_limite_C, "▲")}</td><td>${marca(r.deficit_bajo_limite_C, "▼")}</td>
-      <td>${fmt(r.HR_pct, 0)}</td>
+      <td class="${cls(r.delta_fuera_rango_C)}">${signo(r.delta_fuera_rango_C)}</td>
       <td>${fmt(r.energia_total_kWh, 0)}</td><td class="${cls(r.delta_energia_pct)}">${signo(r.delta_energia_pct, 0)} %</td>
       <td>${fmt(r.carbono_kgCO2e, 0)}</td></tr>`).join("") + "</tbody>";
   // etiqueta de cada celda para la vista en fichas (pantallas angostas)
@@ -289,6 +311,8 @@ function tabla(per) {
     th.childNodes[0].textContent + (th.querySelector("small") ? ` (${th.querySelector("small").textContent})` : ""));
   document.querySelectorAll("#tabla tbody tr").forEach(tr => [...tr.cells].forEach((td, i) => td.dataset.label = encabezados[i]));
 }
+
+const aceptabilidad = rs => rs[0]?.aceptabilidad_pct ? ` (${fmt(rs[0].aceptabilidad_pct, 0)} % de aceptabilidad)` : "";
 
 function base() {
   const ink2 = css("--ink-2"), grid = css("--grid");
@@ -305,9 +329,13 @@ function nuevo(id, cfg) { charts[id]?.destroy(); charts[id] = new Chart(document
 function rango(per) {
   const rs = escenarios.map(e => fila(e, per)).filter(Boolean);
   const labels = rs.map(r => r.escenario_id);
-  document.getElementById("nota-rango").textContent = per === "anual"
-    ? "Punto: T operativa anual. El año no tiene franja: cada mes tiene la suya (ver «Mes a mes»)."
-    : "Franja azul: rango aceptable del mes. Punto: T operativa del escenario. Fuera de la franja = incómodo.";
+  // el año no tiene rango propio (cada mes tiene el suyo): sin franja, la gráfica no dice nada
+  const anual = per === "anual";
+  document.getElementById("card-rango").hidden = anual;
+  document.getElementById("card-tradeoff").classList.toggle("full", anual);
+  if (anual) { charts["c-rango"]?.destroy(); delete charts["c-rango"]; return; }
+  document.getElementById("nota-rango").textContent =
+    `Franja azul: rango aceptable del mes${aceptabilidad(rs)}. Punto: T operativa del escenario. Fuera de la franja = incómodo.`;
   const o = base();
   o.indexAxis = "y";
   o.scales.x.title = { display: true, text: "Temperatura operativa (°C)", color: css("--ink-2") };
@@ -369,6 +397,7 @@ function tradeoff(per) {
 
 function mensual(e) {
   document.getElementById("titulo-mensual").textContent = `${e} — ${nombre(e)}`;
+  document.getElementById("cambios-mensual").textContent = `Qué cambia contra el base: ${queCambia(e)}.`;
   const eb = escenarios.find(esBase);
   const serie = (id, c) => MESES.map(m => fila(id, m)?.[c] ?? null);
   const col = colores[e], gris = css("--muted"), exterior = css("--axis");
@@ -376,12 +405,12 @@ function mensual(e) {
   o.interaction = { mode: "index", intersect: false };
   o.plugins.tooltip = { ...o.plugins.tooltip, mode: "index", intersect: false,
     filter: c => !c.dataset.label.startsWith("Límite inf"),
-    callbacks: { label: c => c.dataset.label === "Rango ASHRAE 55"
+    callbacks: { label: c => c.dataset.label.startsWith("Rango ASHRAE 55")
       ? `Rango ASHRAE 55: ${fmt(serie(e, "limite_inf_C")[c.dataIndex])} a ${fmt(c.raw)} °C`
       : `${c.dataset.label}: ${fmt(c.raw)} °C` } };
   o.scales.y.title = { display: true, text: "°C", color: css("--ink-2") };
   const ds = [
-    { label: "Rango ASHRAE 55", data: serie(e, "limite_sup_C"), borderColor: "transparent", pointRadius: 0, fill: "+1", backgroundColor: css("--band") },
+    { label: `Rango ASHRAE 55${aceptabilidad(filas)}`, data: serie(e, "limite_sup_C"), borderColor: "transparent", pointRadius: 0, fill: "+1", backgroundColor: css("--band") },
     { label: "Límite inf. ASHRAE", data: serie(e, "limite_inf_C"), borderColor: "transparent", pointRadius: 0, fill: false },
     { label: `T operativa ${e}`, data: serie(e, "T_operativa_C"), borderColor: col, backgroundColor: col, borderWidth: 2, pointRadius: 4, pointHoverRadius: 6 },
   ];

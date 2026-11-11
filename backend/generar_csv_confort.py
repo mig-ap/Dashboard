@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-generar_csv_confort.py — Esquema de datos de confort térmico (v9: T_op del simulador por periodo)
+generar_csv_confort.py — Esquema de datos de confort térmico (v10: 27 columnas, solo variables que influyen)
 Genera el CSV único para el dashboard a partir de archivos dados. No inventa
 valores: lo que no está en las entradas queda vacío y se anota en el log.
 La vivienda es una sola zona (sin habitaciones) y el confort siempre se mide con
@@ -12,7 +12,7 @@ máximo y mínimo. Una fila por escenario × periodo.
 Entradas
   --escenarios  CSV: escenario_id, escenario_nombre, es_base, archivo_resultados,
                 [U_muro_ext, U_techo, U_ventana, SHGC_ventana, absortancia_muro,
-                 absortancia_techo, sombreado_m, ventilacion_ach, vel_aire_m_s]
+                 absortancia_techo, ventilacion_ach, vel_aire_m_s]
   --config      CSV clave,valor: vivienda_id, aceptabilidad_pct (80|90),
                 [factor_emision_kgCO2e_kWh, energia_tipo (electrica|termica),
                  COP_enfriamiento, eficiencia_calefaccion]
@@ -22,8 +22,9 @@ Entradas
   Resultados del simulador por escenario (archivo_resultados): una fila por mes
                 (mes = 1–12 o ene–dic) y, opcional, una fila mes = anual, con la
                 temperatura operativa del PUNTO CENTRAL de la vivienda:
-                T_operativa_C. Opcionales: [HR_pct, energia_enfriamiento_kWh,
-                energia_calefaccion_kWh].
+                T_operativa_C. Opcionales: [energia_enfriamiento_kWh,
+                energia_calefaccion_kWh]. Otras columnas (p. ej. HR_pct) se ignoran:
+                la humedad no entra en ASHRAE 55 adaptativo.
 Salidas
   --salida CSV final y <salida>_log.md con faltantes, supuestos y avisos.
 """
@@ -32,17 +33,17 @@ import numpy as np
 import pandas as pd
 
 PARAMS = ["U_muro_ext", "U_techo", "U_ventana", "SHGC_ventana", "absortancia_muro",
-          "absortancia_techo", "sombreado_m", "ventilacion_ach", "vel_aire_m_s"]
+          "absortancia_techo", "ventilacion_ach", "vel_aire_m_s"]
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 DIAS_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 COLUMNAS = (
     ["vivienda_id", "escenario_id", "escenario_nombre", "es_base"] + PARAMS +
-    ["nivel", "periodo", "mes",
+    ["periodo", "mes",
      "T_ext_max_C", "T_ext_min_C", "T_ext_media_C",
-     "T_operativa_C", "HR_pct",
+     "T_operativa_C",
      "limite_sup_C", "limite_inf_C", "exceso_sobre_limite_C", "deficit_bajo_limite_C",
      "energia_total_kWh", "carbono_kgCO2e",
-     "delta_T_operativa_C", "delta_energia_pct",
+     "delta_fuera_rango_C", "delta_energia_pct",
      "aceptabilidad_pct"])
 
 LOG = {"faltantes": [], "supuestos": [], "avisos": []}
@@ -188,10 +189,9 @@ def main():
         if res.index.duplicated().any():
             log("avisos", f"{s['escenario_id']}: mes repetido en los resultados; se usa la primera fila (debe haber un solo valor por mes para toda la vivienda)")
             res = res[~res.index.duplicated()]
-        for c in ["T_operativa_C", "HR_pct"]:
-            if c not in res:
-                log("faltantes", f"{s['escenario_id']}: los resultados no traen {c}: columna vacía")
-                res[c] = np.nan
+        if "T_operativa_C" not in res:
+            log("faltantes", f"{s['escenario_id']}: los resultados no traen T_operativa_C: columna vacía")
+            res["T_operativa_C"] = np.nan
         faltan = [MESES[m - 1] for m in range(1, 13) if m not in res.index]
         if faltan:
             log("faltantes", f"{s['escenario_id']}: sin resultados para {', '.join(faltan)}")
@@ -203,7 +203,7 @@ def main():
         def periodo(k):
             top = val(k, "T_operativa_C")
             r = {c: cli(k, c) for c in ["T_ext_max_C", "T_ext_min_C", "T_ext_media_C"]}
-            r.update(T_operativa_C=top, HR_pct=val(k, "HR_pct"),
+            r.update(T_operativa_C=top,
                      energia_total_kWh=float(en[k]) if en is not None and k in en.index and pd.notna(en[k]) else np.nan)
             if k != "anual":
                 li, ls = limites(r["T_ext_media_C"], top, v, acept)
@@ -229,20 +229,22 @@ def main():
         comunes = {"vivienda_id": cfg.get("vivienda_id", ""), "escenario_id": s["escenario_id"],
                    "escenario_nombre": s["escenario_nombre"], "es_base": s["es_base"],
                    **{p: num(s.get(p, "")) for p in PARAMS}, "aceptabilidad_pct": acept}
-        periodos = [("clave", per, anual if k == "anual" else mensual[k], "" if k == "anual" else k) for per, k in clave] + \
-                   [("mes", MESES[m - 1], mensual[m], m) for m in range(1, 13)]
-        for nivel, per, r, mes in periodos:
-            filas.append({**r, **comunes, "nivel": nivel, "periodo": per, "mes": mes,
+        periodos = [(per, anual if k == "anual" else mensual[k], "" if k == "anual" else k) for per, k in clave] + \
+                   [(MESES[m - 1], mensual[m], m) for m in range(1, 13)]
+        for per, r, mes in periodos:
+            filas.append({**r, **comunes, "periodo": per, "mes": mes,
                           "carbono_kgCO2e": r["energia_total_kWh"] * factor})
     if not filas:
         sys.exit("Sin filas generadas: revisar el log")
     df = pd.DataFrame(filas).reindex(columns=COLUMNAS)
-    # deltas contra base (mismo periodo)
-    b = df[df["es_base"].str.lower().isin(["si", "sí", "1"])].set_index("periodo")
+    # deltas contra base (mismo periodo). Grados fuera del rango = exceso + déficit:
+    # negativo = el escenario queda más cerca del rango que el base
+    fuera = df["exceso_sobre_limite_C"] + df["deficit_bajo_limite_C"]
+    b = df.assign(fuera=fuera)[df["es_base"].str.lower().isin(["si", "sí", "1"])].set_index("periodo")
     if len(b):
         k = list(df["periodo"])
         g = lambda c: np.array([b[c].get(i, np.nan) for i in k], dtype=float)
-        df["delta_T_operativa_C"] = df["T_operativa_C"] - g("T_operativa_C")
+        df["delta_fuera_rango_C"] = fuera - g("fuera")
         with np.errstate(divide="ignore", invalid="ignore"):
             be = g("energia_total_kWh")
             df["delta_energia_pct"] = np.where(be > 0, 100 * (df["energia_total_kWh"] - be) / be, np.nan)

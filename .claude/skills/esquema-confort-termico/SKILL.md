@@ -11,7 +11,7 @@ Usa esta skill cuando se trabaje el esquema de datos del dashboard de confort t�
 
 - **Estándar fijo:** el confort siempre se mide con **ASHRAE 55** (adaptativo); no hay otro criterio ni opción de configuración.
 - **Usuario final:** una persona de arquitectura que compara los tradeoffs de confort (y energía/carbono) de cambios a la vivienda. El CSV debe ser claro para ella: nombres legibles, un escenario = un conjunto de medidas, deltas contra el base ya calculados.
-- Una vivienda de trabajo (PUE-01; PUE-01 y PUE-02 tienen datos mock), cada una con superficie fija y analizada por separado. Lo que cambia entre corridas son **medidas** sobre la envolvente u operación (valor U de muros/techo/ventanas, SHGC, absortancia, sombreado, ventilación, velocidad del aire).
+- Una vivienda de trabajo (PUE-01; PUE-01 y PUE-02 tienen datos mock), cada una con superficie fija y analizada por separado. Lo que cambia entre corridas son **medidas** sobre la envolvente u operación (valor U de muros/techo/ventanas, SHGC, absortancia, ventilación, velocidad del aire).
 - Cada escenario se simula y se compara contra el caso base en **confort térmico (ASHRAE 55)**, **energía** y **carbono**.
 - Todo vive en **un solo CSV** que el dashboard lee sin hacer uniones entre tablas.
 - Interesan sobre todo el **mes caliente**, el **mes frío** y el **año**. No hay filas diarias.
@@ -33,16 +33,14 @@ Cada valor del CSV debe poder rastrearse a una de estas fuentes:
 
 ## 3. Estructura del CSV
 
-**Una fila = escenario × periodo.** La vivienda se modela como **una sola zona, sin habitaciones** (v9 del esquema): no hay filas por cuarto ni fila TOTAL.
+**Una fila = escenario × periodo.** La vivienda se modela como **una sola zona, sin habitaciones** (v10 del esquema): no hay filas por cuarto ni fila TOTAL.
 
-- Periodos (columna `nivel`):
-  - `clave`: `anual`, `mes_caliente`, `mes_frio`
-  - `mes`: `ene` … `dic`
-  - El mes caliente y el mes frío salen **del clima**: el mes con la media exterior más alta y la más baja. `mes` dice cuál fue. El dashboard **no debe sumar** filas `clave` con filas `mes`.
-- **No se cuentan horas.** Por periodo: la T_op y la HR del simulador, el rango ASHRAE 55 del mes y cuánto se sale la T_op de él. No hay horas de confort, % de confort, grados-hora, ocupación ni desglose de energía. Solo la T exterior va con máximo y mínimo (y su media, que es la t_pma del mes).
+- Periodos (columna `periodo`): `anual`, `mes_caliente`, `mes_frio` y `ene` … `dic`.
+  - El mes caliente y el mes frío salen **del clima**: el mes con la media exterior más alta y la más baja. `mes` dice cuál fue. `anual`, `mes_caliente` y `mes_frio` repiten datos de los meses: **no se suman** con ellos.
+- **No se cuentan horas.** Por periodo: la T_op del simulador, el rango ASHRAE 55 del mes y cuánto se sale la T_op de él. No hay horas de confort, % de confort, grados-hora, ocupación ni desglose de energía. Solo la T exterior va con máximo y mínimo (y su media, que es la t_pma del mes).
 - Cada fila trae el **estado completo** de la casa en ese escenario (todos los parámetros, no solo lo que cambió) y los supuestos, para que se pueda leer sola.
 
-Formato: UTF-8, separador coma, punto decimal, encabezados en snake_case sin acentos y con la unidad en el nombre, 2 decimales. 30 columnas.
+Formato: UTF-8, separador coma, punto decimal, encabezados en snake_case sin acentos y con la unidad en el nombre, 2 decimales. 27 columnas.
 
 ### Diccionario de columnas
 
@@ -54,23 +52,20 @@ Formato: UTF-8, separador coma, punto decimal, encabezados en snake_case sin ace
 | U_muro_ext, U_techo, U_ventana | W/m²K | valor U del elemento completo, de archivo o del usuario (nunca los valores por defecto de Revit del IFC/gbXML) |
 | SHGC_ventana | 0–1 | ídem |
 | absortancia_muro, absortancia_techo | 0–1 | ídem |
-| sombreado_m | m | profundidad de volado/alero |
 | ventilacion_ach | 1/h | renovaciones de aire |
 | vel_aire_m_s | m/s | velocidad del aire interior supuesta en el escenario |
-| nivel | clave/mes | — |
 | periodo | — | anual, mes_caliente, mes_frio, ene…dic |
 | mes | 1–12 | vacío en anual |
 | T_ext_max_C, T_ext_min_C | °C | máximo y mínimo exterior del periodo (EPW o `clima.csv`) |
 | T_ext_media_C | °C | media exterior del periodo; en un mes es la t_pma de ASHRAE 55 |
 | T_operativa_C | °C | del simulador, punto central de la vivienda, tal cual (fila del mes o `anual`); vacía en `anual` si el simulador no la da |
-| HR_pct | % | del simulador, igual que T_operativa_C |
 | limite_sup_C | °C | límite superior ASHRAE 55 del mes: 0.31·t_pma + 17.8 + banda (3.5 u 2.5), más el ajuste por velocidad del aire; vacío en `anual` |
 | limite_inf_C | °C | límite inferior ASHRAE 55 del mes; vacío en `anual` |
 | exceso_sobre_limite_C | °C | máx(0, T_op − límite superior); en `anual`, el del peor mes |
 | deficit_bajo_limite_C | °C | máx(0, límite inferior − T_op); en `anual`, el del peor mes |
 | energia_total_kWh | kWh | enfriamiento + calefacción del simulador (cargas ideales); año = suma de meses; se convierte a eléctrica solo con COP/eficiencia dados |
 | carbono_kgCO2e | kgCO₂e | energia_total_kWh × factor_emision_kgCO2e_kWh (solo si el factor fue dado) |
-| delta_T_operativa_C | °C | contra el base, mismo periodo |
+| delta_fuera_rango_C | °C | (exceso + déficit) del escenario − (exceso + déficit) del base, mismo periodo; negativo = mejora |
 | delta_energia_pct | % | ídem; vacío si la base es 0. El delta de carbono sería igual (mismo factor), por eso no existe |
 | aceptabilidad_pct | % | config (80 o 90) |
 
@@ -84,7 +79,7 @@ Detalle completo, con ejemplo numérico y limitaciones: `metodologia_calculo.md`
 - **T_confort** = 0.31·t_pma + 17.8. Banda de ±3.5 °C (80 %) o ±2.5 °C (90 %).
 - **Aplicabilidad:** 10 ≤ t_pma ≤ 33.5 °C. Un mes fuera de ese rango queda sin límites ni exceso/déficit y se avisa en el log.
 - **Velocidad del aire** (`vel_aire_m_s` del escenario; cuando T_op > 25 °C, solo el límite superior): +1.2 °C (0.6 m/s), +1.8 °C (0.9 m/s), +2.2 °C (1.2 m/s).
-- **Año:** T_op y HR de la fila `anual` del simulador; sin límites propios; exceso/déficit = el del peor mes; energía = suma de los 12 meses.
+- **Año:** T_op de la fila `anual` del simulador; sin límites propios; exceso/déficit = el del peor mes; energía = suma de los 12 meses.
 
 ## 5. Procedimiento
 
@@ -96,10 +91,10 @@ Detalle completo, con ejemplo numérico y limitaciones: `metodologia_calculo.md`
    - Salidas del simulador (DesignBuilder/EnergyPlus): un valor por mes (y anual) de la vivienda completa (una sola zona; si el modelo tiene varios cuartos, se reduce a un valor antes del script, p. ej. un nodo térmico o promedio ponderado por área).
    - EPW de Puebla, o una tabla mensual de clima: T exterior máx, mín y media por mes.
 2. **Arma las entradas del script** en una carpeta de trabajo:
-   - `escenarios.csv`: escenario_id, escenario_nombre, es_base, archivo_resultados + los 9 parámetros (vacíos si no están en los archivos).
+   - `escenarios.csv`: escenario_id, escenario_nombre, es_base, archivo_resultados + los 8 parámetros (vacíos si no están en los archivos).
    - `config.csv` (clave,valor): vivienda_id, aceptabilidad_pct, factor_emision_kgCO2e_kWh, energia_tipo (electrica/termica), COP_enfriamiento, eficiencia_calefaccion. Solo lo dado.
    - `clima.csv` (si no hay EPW): mes, T_ext_max_C, T_ext_min_C, T_ext_media_C.
-   - Un `resultados_<escenario>.csv` por escenario con columnas normalizadas: mes (1–12, y `anual` si se tiene), T_operativa_C, HR_pct, energia_enfriamiento_kWh, energia_calefaccion_kWh. Para EnergyPlus/DesignBuilder: la operativa mensual del punto central → T_operativa_C, "Zone Air Relative Humidity" mensual → HR_pct, "Zone Ideal Loads … Cooling/Heating Energy [J]" mensual ÷ 3.6e6 → kWh (energia_tipo = termica). Solo cambios de nombre y de unidad, nada más; el valor mensual se copia tal cual.
+   - Un `resultados_<escenario>.csv` por escenario con columnas normalizadas: mes (1–12, y `anual` si se tiene), T_operativa_C, energia_enfriamiento_kWh, energia_calefaccion_kWh. Para EnergyPlus/DesignBuilder: la operativa mensual del punto central → T_operativa_C, "Zone Ideal Loads … Cooling/Heating Energy [J]" mensual ÷ 3.6e6 → kWh (energia_tipo = termica). Solo cambios de nombre y de unidad, nada más; el valor mensual se copia tal cual.
 3. **Ejecuta** el script de la sección 7:
    `python3 generar_csv_confort.py --escenarios escenarios.csv --config config.csv (--epw clima.epw | --clima clima.csv) --salida confort_PUE-01.csv`
    Dentro del repositorio del proyecto: `python backend/generar_csv_confort.py … --salida datos/confort_<vivienda>.csv`. Todo CSV que quede en `datos/` lo lee el dashboard automáticamente.
@@ -125,4 +120,4 @@ Detalle completo, con ejemplo numérico y limitaciones: `metodologia_calculo.md`
 
 ## 8. Mejora continua
 
-Si un cambio al esquema se acuerda con el usuario: actualiza `COLUMNAS` y el diccionario, sube la versión (v9 → v10) en el docstring y registra el cambio en el MD de contexto del proyecto (`docs/contexto_esquema_confort.md`), en la sección de historial, y vuelve a empaquetar la skill.
+Si un cambio al esquema se acuerda con el usuario: actualiza `COLUMNAS` y el diccionario, sube la versión (v10 → v11) en el docstring y registra el cambio en el MD de contexto del proyecto (`docs/contexto_esquema_confort.md`), en la sección de historial, y vuelve a empaquetar la skill.
