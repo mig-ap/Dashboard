@@ -31,6 +31,7 @@ El instalador no toca nada fuera de la carpeta del proyecto: deja las librerías
    - una tabla con cada escenario frente al caso base y las medidas que lo distinguen,
    - la temperatura operativa de cada escenario frente a la franja aceptable de ASHRAE 55,
    - el *tradeoff* confort contra energía,
+   - un **mapa mes a mes** que muestra en qué meses cada escenario se sale del rango, por calor (rojo) o por frío (azul),
    - la evolución mes a mes del escenario elegido frente al base.
 
    Se ve completa en pantallas de computadora, tableta y celular.

@@ -149,7 +149,8 @@ Script            → límites adaptativos del mes → exceso/déficit = T_op �
   2. Tabla de escenarios con todos los valores y qué medidas cambian contra el base (en pantallas angostas, una ficha por escenario). El rango ASHRAE 55 se muestra una sola vez por periodo, porque depende solo del clima del mes; en un escenario solo se indica si su ventilador sube el límite superior.
   3. T_op de cada escenario frente a la franja ASHRAE 55 del mes (se oculta en «Año», que no tiene franja propia).
   4. Tradeoff: grados fuera del rango contra energía, con el nombre de cada escenario junto a su punto.
-  5. Mes a mes: T_op del escenario y del base contra la franja, con T exterior máx/mín de referencia.
+  5. Mapa mes a mes: escenarios × meses; exceso en rojo y déficit en azul (paleta divergente con gris neutro = dentro del rango), intensidad relativa al mayor valor de la vivienda; un clic en una fila elige ese escenario para el detalle mensual.
+  6. Mes a mes: T_op del escenario y del base contra la franja, con T exterior máx/mín de referencia.
 
 ## 9. Glosario corto
 
